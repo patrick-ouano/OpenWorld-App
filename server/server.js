@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import landmarkRoutes from './routes/landmarks.js';
+import authRoutes from './routes/auth.js';
 
 dns.setServers(['8.8.8.8', '8.8.4.4']); // fixes dns issues with mongodb connection 
 // apparently is a node.js on windows issue 
@@ -19,6 +20,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/openworld')
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+app.use('/api/auth', authRoutes);
 app.use('/api/landmarks', landmarkRoutes);
 
 app.listen(process.env.PORT || 5000, () => console.log('Server on port 5000'));
