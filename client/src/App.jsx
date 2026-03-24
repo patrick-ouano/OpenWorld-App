@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
@@ -10,7 +10,8 @@ import Profile from "./pages/Profile";
 
 function App() {
   return (
-    <Routes>
+    <BrowserRouter>
+      <Routes>
         {/* Public pages — no nav bar */}
         <Route path="/" element={<Landing />} />
         <Route path="/landing" element={<Landing />} />
@@ -26,6 +27,7 @@ function App() {
           <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
+    </BrowserRouter>
   );
 }
 
