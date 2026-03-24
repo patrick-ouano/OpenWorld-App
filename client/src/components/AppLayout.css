@@ -2,6 +2,9 @@
 
 .app-layout {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   background-color: #fafafa;
 }
 
@@ -12,7 +15,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 2000;
   background-color: #1a237e;
   color: #fff;
 }
@@ -73,4 +76,8 @@
 
 .page-content {
   padding-top: 110px; /* offset for fixed nav */
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  width: 100%;
 }
