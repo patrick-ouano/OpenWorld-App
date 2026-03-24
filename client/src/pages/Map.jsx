@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
 
@@ -97,6 +97,16 @@ function MapClickHandler({ setDraftPin }) {
 
 function Map() {
   const [draftPin, setDraftPin] = useState(null);
+  const [pinName, setPinName] = useState('');
+  const [pinCategory, setPinCategory] = useState('');
+  const [pinDescription, setPinDescription] = useState('');
+
+  const handleCancel = () => {
+    setDraftPin(null);
+    setPinName('');
+    setPinCategory('');
+    setPinDescription('');
+  };
 
   return (
     <div className="map-page">
@@ -115,7 +125,52 @@ function Map() {
         <ZoomLogger />
         <MapDebugger />
         <MapClickHandler setDraftPin={setDraftPin} />
-        {draftPin && <Marker position={draftPin} />}
+        {draftPin && (
+          <Marker position={draftPin}>
+            <Popup className="admin-pin-popup" closeButton={false}>
+              <h3>Create Landmark</h3>
+              <input
+                type="text"
+                placeholder="Location Name"
+                value={pinName}
+                onChange={(e) => setPinName(e.target.value)}
+              />
+              <select
+                value={pinCategory}
+                onChange={(e) => setPinCategory(e.target.value)}
+              >
+                <option value="">Select Category</option>
+                <option value="Landmark">Landmark</option>
+                <option value="Library">Library</option>
+                <option value="Housing">Housing</option>
+                <option value="Dining">Dining</option>
+              </select>
+              <textarea
+                placeholder="Description"
+                value={pinDescription}
+                onChange={(e) => setPinDescription(e.target.value)}
+              />
+              <div className="popup-buttons">
+                <button
+                  className="save-btn"
+                  onClick={() =>
+                    console.log('Saving:', {
+                      name: pinName,
+                      category: pinCategory,
+                      description: pinDescription,
+                      coordinates: draftPin,
+                    })
+                  }
+                >
+                  Save Pin
+                </button>
+                <button className="cancel-btn" onClick={handleCancel}>
+                  Cancel
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );
