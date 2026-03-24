@@ -1,0 +1,57 @@
+/* ── Home Hero Section ── */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background-color: #fafafa;
+  text-align: center;
+}
+
+/* ── Title ── */
+
+.home-title {
+  font-size: 4rem;
+  font-weight: 800;
+  color: #0021a5; /* UF Blue */
+  margin: 0 0 1rem;
+  letter-spacing: -1px;
+}
+
+/* ── Subtitle ── */
+
+.home-subtitle {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #555;
+  max-width: 480px;
+  line-height: 1.6;
+  margin: 0 0 2.5rem;
+}
+
+/* ── Button ── */
+
+.home-button {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 0.85rem 2.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #fff;
+  background-color: #fa4616; /* UF Orange */
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(250, 70, 22, 0.35);
+}
+
+.home-button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}

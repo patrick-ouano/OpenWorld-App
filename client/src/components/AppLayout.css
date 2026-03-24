@@ -1,0 +1,76 @@
+/* ── App Layout ── */
+
+.app-layout {
+  min-height: 100vh;
+  background-color: #fafafa;
+}
+
+/* ── Top Navigation Bar ── */
+
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: #1a237e;
+  color: #fff;
+}
+
+/* Top Row: title + stats */
+
+.nav-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+}
+
+.nav-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.nav-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fa4616;
+}
+
+/* Bottom Row: tabs */
+
+.nav-tabs {
+  display: flex;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.nav-tab {
+  flex: 1;
+  padding: 0.6rem 0;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-tab:hover {
+  color: #fff;
+}
+
+.nav-tab-active {
+  color: #fff;
+  border-bottom-color: #fa4616;
+}
+
+/* ── Page Content ── */
+
+.page-content {
+  padding-top: 110px; /* offset for fixed nav */
+}
