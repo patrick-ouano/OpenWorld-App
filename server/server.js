@@ -9,9 +9,6 @@ import authRoutes from './routes/auth.js';
 dns.setServers(['8.8.8.8', '8.8.4.4']); // fixes dns issues with mongodb connection 
 // apparently is a node.js on windows issue 
 
-dns.setServers(['8.8.8.8', '8.8.4.4']); // fixes dns issues with mongodb connection 
-// apparently is a node.js on windows issue 
-
 dotenv.config();
 const app = express();
 app.use(cors());
