@@ -11,7 +11,7 @@ function Landing() {
         Explore the Swamp. Crack the trivia. Collect your badges.
       </p>
       <button className="home-button" onClick={() => navigate('/signup')}>
-        Get Started
+        Start Exploring
       </button>
     </div>
   );
