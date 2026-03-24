@@ -88,9 +88,19 @@ function ZoomLogger() {
   return null;
 }
 
-function MapClickHandler({ setDraftPin }) {
+function MapClickHandler({ draftPin, setDraftPin }) {
   useMapEvents({
-    click: (e) => setDraftPin(e.latlng),
+    click: (e) => {
+      // Don't create a pin if the user is typing in a form field
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (draftPin) {
+        setDraftPin(null);
+      } else {
+        setDraftPin(e.latlng);
+      }
+    },
   });
   return null;
 }
@@ -100,6 +110,18 @@ function Map() {
   const [pinName, setPinName] = useState('');
   const [pinCategory, setPinCategory] = useState('');
   const [pinDescription, setPinDescription] = useState('');
+  const [landmarks, setLandmarks] = useState([]);
+
+  // Fetch saved landmarks from the database
+  const fetchLandmarks = async () => {
+    const res = await fetch('http://localhost:5000/api/landmarks');
+    const data = await res.json();
+    setLandmarks(data);
+  };
+
+  useEffect(() => {
+    fetchLandmarks();
+  }, []);
 
   const handleCancel = () => {
     setDraftPin(null);
@@ -107,6 +129,42 @@ function Map() {
     setPinCategory('');
     setPinDescription('');
   };
+
+  // Save a new landmark to the database
+  const handleSave = async () => {
+    const res = await fetch('http://localhost:5000/api/landmarks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: pinName,
+        category: pinCategory,
+        description: pinDescription,
+        coordinates: { latitude: draftPin.lat, longitude: draftPin.lng },
+      }),
+    });
+    if (res.ok) {
+      setDraftPin(null);
+      setPinName('');
+      setPinCategory('');
+      setPinDescription('');
+      fetchLandmarks();
+    }
+  };
+
+  // Delete a landmark from the database
+  const deleteLandmark = async (id) => {
+    const res = await fetch(`http://localhost:5000/api/landmarks/${id}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      fetchLandmarks();
+    }
+  };
+
+  const isFormValid =
+    pinName.trim() !== '' &&
+    pinCategory !== '' &&
+    pinDescription.trim() !== '';
 
   return (
     <div className="map-page">
@@ -124,7 +182,21 @@ function Map() {
         <LocationMarker />
         <ZoomLogger />
         <MapDebugger />
-        <MapClickHandler setDraftPin={setDraftPin} />
+        <MapClickHandler draftPin={draftPin} setDraftPin={setDraftPin} />
+
+        {/* Permanent landmarks from the database */}
+        {landmarks.map((lm) => (
+          <Marker key={lm._id} position={[lm.coordinates.latitude, lm.coordinates.longitude]}>
+            <Popup>
+              <h3>{lm.name}</h3>
+              <span className="category-badge">{lm.category}</span>
+              <p>{lm.description}</p>
+              <button className="delete-pin-btn" onClick={() => deleteLandmark(lm._id)}>Delete Pin</button>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Draft pin for creating a new landmark */}
         {draftPin && (
           <Marker position={draftPin}>
             <Popup className="admin-pin-popup" closeButton={false}>
@@ -153,18 +225,12 @@ function Map() {
               <div className="popup-buttons">
                 <button
                   className="save-btn"
-                  onClick={() =>
-                    console.log('Saving:', {
-                      name: pinName,
-                      category: pinCategory,
-                      description: pinDescription,
-                      coordinates: draftPin,
-                    })
-                  }
+                  disabled={!isFormValid}
+                  onClick={handleSave}
                 >
                   Save Pin
                 </button>
-                <button className="cancel-btn" onClick={handleCancel}>
+                <button className="cancel-btn" onClick={(e) => { e.stopPropagation(); handleCancel(); }}>
                   Cancel
                 </button>
               </div>
