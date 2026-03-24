@@ -10,7 +10,7 @@ function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (password !== confirmPassword) {
@@ -19,9 +19,29 @@ function Signup() {
     }
 
     setPasswordError('');
-    sessionStorage.setItem('pendingSignupName', fullName.trim());
-    sessionStorage.setItem('pendingSignupEmail', email.trim().toLowerCase());
-    navigate('/login');
+
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          password: password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPasswordError(data.message || 'Signup failed.');
+        return;
+      }
+
+      navigate('/login');
+    } catch (err) {
+      setPasswordError('Could not connect to server.');
+    }
   };
 
   return (

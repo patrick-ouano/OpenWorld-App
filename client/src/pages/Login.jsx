@@ -20,40 +20,51 @@ function Login() {
     return params.get('redirect') || '/app/map';
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
 
     const emailValue = email.trim().toLowerCase();
-    const passwordValue = password;
-    const hasValidEmailShape = emailValue.includes('@');
-    const invalidDemo = emailValue === 'invalid' || passwordValue === 'wrong';
 
-    if (!emailValue || !hasValidEmailShape) {
+    if (!emailValue || !emailValue.includes('@')) {
       setError('Please enter a valid email.');
       return;
     }
 
-    if (!passwordValue) {
+    if (!password) {
       setError('Enter a valid password.');
       return;
     }
 
-    if (invalidDemo) {
-      setError('Invalid credentials.');
-      return;
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailValue,
+          password: password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Invalid credentials.');
+        return;
+      }
+
+      const storage = rememberMe ? localStorage : sessionStorage;
+      const otherStorage = rememberMe ? sessionStorage : localStorage;
+
+      otherStorage.removeItem('authToken');
+      otherStorage.removeItem('authUser');
+      storage.setItem('authToken', data.token);
+      storage.setItem('authUser', JSON.stringify(data.user));
+
+      navigate(getRedirectPath());
+    } catch (err) {
+      setError('Could not connect to server.');
     }
-
-    const demoToken = btoa(`${emailValue}:${Date.now()}`);
-    const storage = rememberMe ? localStorage : sessionStorage;
-    const otherStorage = rememberMe ? sessionStorage : localStorage;
-
-    otherStorage.removeItem('authToken');
-    otherStorage.removeItem('authUser');
-    storage.setItem('authToken', demoToken);
-    storage.setItem('authUser', emailValue);
-
-    navigate(getRedirectPath());
   };
 
   return (
