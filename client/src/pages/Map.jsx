@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
 
@@ -88,7 +88,16 @@ function ZoomLogger() {
   return null;
 }
 
+function MapClickHandler({ setDraftPin }) {
+  useMapEvents({
+    click: (e) => setDraftPin(e.latlng),
+  });
+  return null;
+}
+
 function Map() {
+  const [draftPin, setDraftPin] = useState(null);
+
   return (
     <div className="map-page">
       <MapContainer
@@ -105,6 +114,8 @@ function Map() {
         <LocationMarker />
         <ZoomLogger />
         <MapDebugger />
+        <MapClickHandler setDraftPin={setDraftPin} />
+        {draftPin && <Marker position={draftPin} />}
       </MapContainer>
     </div>
   );
