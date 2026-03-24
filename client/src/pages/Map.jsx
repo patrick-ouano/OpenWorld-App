@@ -106,6 +106,10 @@ function MapClickHandler({ draftPin, setDraftPin }) {
 }
 
 function Map() {
+  const userStr = localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
+  const currentUser = userStr ? JSON.parse(userStr) : null;
+  const isAdmin = currentUser?.role === 'Admin';
+
   const [draftPin, setDraftPin] = useState(null);
   const [pinName, setPinName] = useState('');
   const [pinCategory, setPinCategory] = useState('');
@@ -182,7 +186,7 @@ function Map() {
         <LocationMarker />
         <ZoomLogger />
         <MapDebugger />
-        <MapClickHandler draftPin={draftPin} setDraftPin={setDraftPin} />
+        {isAdmin && <MapClickHandler draftPin={draftPin} setDraftPin={setDraftPin} />}
 
         {/* Permanent landmarks from the database */}
         {landmarks.map((lm) => (
@@ -191,7 +195,7 @@ function Map() {
               <h3>{lm.name}</h3>
               <span className="category-badge">{lm.category}</span>
               <p>{lm.description}</p>
-              <button className="delete-pin-btn" onClick={() => deleteLandmark(lm._id)}>Delete Pin</button>
+              {isAdmin && <button className="delete-pin-btn" onClick={() => deleteLandmark(lm._id)}>Delete Pin</button>}
             </Popup>
           </Marker>
         ))}
