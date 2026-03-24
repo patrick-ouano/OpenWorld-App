@@ -23,4 +23,14 @@ router.get('/', async (req, res) => {
   }
 });
 
+// DELETE /:id — delete a landmark
+router.delete('/:id', async (req, res) => {
+  try {
+    await Landmark.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Landmark deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
