@@ -1,11 +1,12 @@
-// import dns from 'dns';
+import dns from 'dns';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import landmarkRoutes from './routes/landmarks.js';
 
-// dns.setServers(['8.8.8.8', '8.8.4.4']);
+dns.setServers(['8.8.8.8', '8.8.4.4']); // fixes dns issues with mongodb connection 
+// apparently is a node.js on windows issue 
 
 dotenv.config();
 const app = express();
