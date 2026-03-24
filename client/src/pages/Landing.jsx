@@ -10,8 +10,8 @@ function Landing() {
       <p className="home-subtitle">
         Explore the Swamp. Crack the trivia. Collect your badges.
       </p>
-      <button className="home-button" onClick={() => navigate('/app/map')}>
-        Start Exploring
+      <button className="home-button" onClick={() => navigate('/signup')}>
+        Get Started
       </button>
     </div>
   );
