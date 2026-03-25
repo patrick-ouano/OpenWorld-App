@@ -1,3 +1,4 @@
+// same auth pattern as Login.jsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Auth.css';
@@ -45,14 +46,14 @@ function Signup() {
   };
 
   return (
-    <main className="auth-page">
-      <section className="auth-card">
-        <section className="auth-form-panel">
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-form-panel">
           <div className="auth-form-wrap">
             <h1 className="auth-title">Create account</h1>
             <p className="auth-subtitle">Sign up to get started.</p>
 
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <form className="auth-form" onSubmit={handleSubmit}>
               <div className="auth-field">
                 <label className="auth-label" htmlFor="fullName">
                   Full name
@@ -62,7 +63,6 @@ function Signup() {
                   id="fullName"
                   name="fullName"
                   type="text"
-                  autoComplete="name"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                   required
@@ -78,7 +78,6 @@ function Signup() {
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
@@ -95,7 +94,6 @@ function Signup() {
                   name="password"
                   type="password"
                   minLength="8"
-                  autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
@@ -113,7 +111,6 @@ function Signup() {
                   name="confirmPassword"
                   type="password"
                   minLength="8"
-                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   required
@@ -130,11 +127,11 @@ function Signup() {
               Already have an account? <Link className="auth-link" to="/login">Log in</Link>
             </p>
           </div>
-        </section>
+        </div>
 
-        <aside className="auth-image-panel" aria-hidden="true" />
-      </section>
-    </main>
+        <div className="auth-image-panel" />
+      </div>
+    </div>
   );
 }
 

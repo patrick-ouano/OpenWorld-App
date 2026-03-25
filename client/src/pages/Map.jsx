@@ -1,3 +1,5 @@
+// react-leaflet setup from https://react-leaflet.js.org/docs/start-setup/
+// geolocation api from https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
 import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,22 +12,12 @@ function LocationMarker() {
   const hasPannedRef = useRef(false);
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      console.warn('[GPS] Geolocation API not available in this browser');
-      return;
-    }
-
-    console.log('[GPS] Requesting location permission...');
+    if (!navigator.geolocation) return;
 
     const onSuccess = (pos) => {
-      const coords = [pos.coords.latitude, pos.coords.longitude];
-      console.log('[GPS] Position acquired:', coords);
-      setPosition(coords);
+      setPosition([pos.coords.latitude, pos.coords.longitude]);
     };
-    const onErr = (err) => {
-      console.error('[GPS] Error:', err.code, err.message);
-      setPosition(null);
-    };
+    const onErr = () => setPosition(null);
     const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
     navigator.geolocation.getCurrentPosition(onSuccess, onErr, opts);
@@ -33,10 +25,7 @@ function LocationMarker() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  if (!position) {
-    console.log('[GPS] No position yet, blue dot not rendered');
-    return null;
-  }
+  if (!position) return null;
 
   return (
     <>
@@ -65,33 +54,10 @@ function PanToUser({ position, hasPannedRef }) {
   return null;
 }
 
-function MapDebugger() {
-  const map = useMap();
-  useEffect(() => {
-    const container = map.getContainer();
-    const { offsetWidth, offsetHeight } = container;
-    console.log('[MAP] Container dimensions:', offsetWidth, 'x', offsetHeight);
-    if (offsetHeight === 0) {
-      console.error('[MAP] Container height is 0 — map will NOT display. Check CSS.');
-    } else {
-      console.log('[MAP] Map is rendering correctly.');
-    }
-    map.invalidateSize();
-  }, [map]);
-  return null;
-}
-
-function ZoomLogger() {
-  useMapEvents({
-    zoomend: (e) => console.log('Zoom level:', e.target.getZoom()),
-  });
-  return null;
-}
-
 function MapClickHandler({ draftPin, setDraftPin }) {
   useMapEvents({
     click: (e) => {
-      // Don't create a pin if the user is typing in a form field
+      // clicking map while typing in popup was creating pins - this fixes it
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
@@ -116,7 +82,7 @@ function Map() {
   const [pinDescription, setPinDescription] = useState('');
   const [landmarks, setLandmarks] = useState([]);
 
-  // Fetch saved landmarks from the database
+  // fetches saved landmarks from the database
   const fetchLandmarks = async () => {
     const res = await fetch('http://localhost:5000/api/landmarks');
     const data = await res.json();
@@ -134,7 +100,7 @@ function Map() {
     setPinDescription('');
   };
 
-  // Save a new landmark to the database
+  // saves a new landmark to the database
   const handleSave = async () => {
     const res = await fetch('http://localhost:5000/api/landmarks', {
       method: 'POST',
@@ -155,7 +121,7 @@ function Map() {
     }
   };
 
-  // Delete a landmark from the database
+  // deletes a landmark from the database
   const deleteLandmark = async (id) => {
     const res = await fetch(`http://localhost:5000/api/landmarks/${id}`, {
       method: 'DELETE',
@@ -184,11 +150,9 @@ function Map() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <LocationMarker />
-        <ZoomLogger />
-        <MapDebugger />
         {isAdmin && <MapClickHandler draftPin={draftPin} setDraftPin={setDraftPin} />}
 
-        {/* Permanent landmarks from the database */}
+        {/* permanent landmarks from db */}
         {landmarks.map((lm) => (
           <Marker key={lm._id} position={[lm.coordinates.latitude, lm.coordinates.longitude]}>
             <Popup>
@@ -200,7 +164,7 @@ function Map() {
           </Marker>
         ))}
 
-        {/* Draft pin for creating a new landmark */}
+        {/* draft pin for creating new landmark */}
         {draftPin && (
           <Marker position={draftPin}>
             <Popup className="admin-pin-popup" closeButton={false}>

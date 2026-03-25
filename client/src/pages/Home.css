@@ -1,5 +1,3 @@
-/* ── Home Hero Section ── */
-
 .home {
   display: flex;
   flex-direction: column;
@@ -11,8 +9,6 @@
   text-align: center;
 }
 
-/* ── Title ── */
-
 .home-title {
   font-size: 4rem;
   font-weight: 800;
@@ -20,8 +16,6 @@
   margin: 0 0 1rem;
   letter-spacing: -1px;
 }
-
-/* ── Subtitle ── */
 
 .home-subtitle {
   font-size: 1.25rem;
@@ -31,8 +25,6 @@
   line-height: 1.6;
   margin: 0 0 2.5rem;
 }
-
-/* ── Button ── */
 
 .home-button {
   font-size: 1.1rem;

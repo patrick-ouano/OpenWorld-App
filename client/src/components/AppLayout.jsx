@@ -15,15 +15,12 @@ function AppLayout() {
 
   return (
     <div className="app-layout">
-      {/* ── Top Navigation Bar ── */}
       <nav className="top-nav">
-        {/* Top Row: branding */}
         <div className="nav-top-row">
           <span className="nav-title">OpenWorld</span>
           <span className="nav-badge">{isAdmin ? 'Admin Cartographer View' : 'Gator Explorer View'}</span>
         </div>
 
-        {/* Bottom Row: tabs */}
         <div className="nav-tabs">
           {TABS.map((tab) => (
             <NavLink
@@ -39,7 +36,6 @@ function AppLayout() {
         </div>
       </nav>
 
-      {/* ── Page Content (rendered by nested routes) ── */}
       <main className="page-content">
         <Outlet />
       </main>
