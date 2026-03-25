@@ -1,3 +1,6 @@
+// signup/login flow referenced from:
+// https://www.freecodecamp.org/news/how-to-build-a-secure-authentication-system-with-jwt-and-refresh-tokens/
+// bcrypt hashing: https://www.npmjs.com/package/bcryptjs
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
