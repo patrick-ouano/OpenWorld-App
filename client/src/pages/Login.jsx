@@ -1,24 +1,14 @@
+// login form referenced from https://react.dev/reference/react-dom/components/form
+// saving jwt token idea from https://www.freecodecamp.org/news/how-to-authenticate-users-in-your-node-app-using-cookies-sessions-and-jwt/
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Auth.css';
 
 function Login() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-
-  const getRedirectPath = () => {
-    const fromState = location.state?.from;
-    if (typeof fromState === 'string' && fromState.trim()) {
-      return fromState;
-    }
-
-    const params = new URLSearchParams(location.search);
-    return params.get('redirect') || '/app/map';
-  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -53,29 +43,24 @@ function Login() {
         return;
       }
 
-      const storage = rememberMe ? localStorage : sessionStorage;
-      const otherStorage = rememberMe ? sessionStorage : localStorage;
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('authUser', JSON.stringify(data.user));
 
-      otherStorage.removeItem('authToken');
-      otherStorage.removeItem('authUser');
-      storage.setItem('authToken', data.token);
-      storage.setItem('authUser', JSON.stringify(data.user));
-
-      navigate(getRedirectPath());
+      navigate('/app/map');
     } catch (err) {
       setError('Could not connect to server.');
     }
   };
 
   return (
-    <main className="auth-page">
-      <section className="auth-card">
-        <section className="auth-form-panel">
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-form-panel">
           <div className="auth-form-wrap">
             <h1 className="auth-title">Welcome back</h1>
             <p className="auth-subtitle">Log in to continue your OpenWorld journey.</p>
 
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <form className="auth-form" onSubmit={handleSubmit}>
               <div className="auth-field">
                 <label className="auth-label" htmlFor="email">
                   Email
@@ -85,7 +70,6 @@ function Login() {
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
@@ -101,24 +85,11 @@ function Login() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
                 />
               </div>
-
-              <label className="auth-remember-row" htmlFor="rememberMe">
-                <input
-                  className="auth-checkbox"
-                  id="rememberMe"
-                  name="rememberMe"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(event) => setRememberMe(event.target.checked)}
-                />
-                Remember Me
-              </label>
 
               {error ? <p className="auth-error">{error}</p> : null}
 
@@ -131,11 +102,11 @@ function Login() {
               New to OpenWorld? <Link className="auth-link" to="/signup">Create an account</Link>
             </p>
           </div>
-        </section>
+        </div>
 
-        <aside className="auth-image-panel" aria-hidden="true" />
-      </section>
-    </main>
+        <div className="auth-image-panel" />
+      </div>
+    </div>
   );
 }
 

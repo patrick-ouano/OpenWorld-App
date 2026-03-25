@@ -1,3 +1,4 @@
+// nested routes from https://reactrouter.com/en/main/start/tutorial
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
@@ -12,13 +13,13 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public pages — no nav bar */}
+        {/* pages without navbar */}
         <Route path="/" element={<Landing />} />
         <Route path="/landing" element={<Landing />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
 
-        {/* App pages — wrapped in AppLayout (nav bar) */}
+        {/* pages with navbar */}
         <Route path="/app" element={<AppLayout />}>
           <Route index element={<Navigate to="/app/map" replace />} />
           <Route path="map" element={<Map />} />

@@ -1,3 +1,4 @@
+// setup based on https://www.mongodb.com/resources/languages/mern-stack-tutorial
 import dns from 'dns';
 import express from 'express';
 import mongoose from 'mongoose';
@@ -18,6 +19,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/openworld')
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.error(err));
 
+// used to check if the server is running
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
