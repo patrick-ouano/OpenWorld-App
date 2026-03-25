@@ -9,6 +9,10 @@ const TABS = [
 ];
 
 function AppLayout() {
+  const userStr = localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
+  const currentUser = userStr ? JSON.parse(userStr) : null;
+  const isAdmin = currentUser?.role === 'Admin';
+
   return (
     <div className="app-layout">
       {/* ── Top Navigation Bar ── */}
@@ -16,7 +20,7 @@ function AppLayout() {
         {/* Top Row: branding */}
         <div className="nav-top-row">
           <span className="nav-title">OpenWorld</span>
-          <span className="nav-badge">Gator Explorer View</span>
+          <span className="nav-badge">{isAdmin ? 'Admin Cartographer View' : 'Gator Explorer View'}</span>
         </div>
 
         {/* Bottom Row: tabs */}
