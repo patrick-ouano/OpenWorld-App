@@ -38,8 +38,8 @@
   position: relative;
   background:
     linear-gradient(160deg, rgba(0, 82, 155, 0.7), rgba(250, 70, 22, 0.35)),
-    url("https://cise.ufl.edu/wp-content/uploads/sites/15/connections-images/marvin-andujar/Marvin-Anduja-c359cfd86ace1d0102c541076b504ffe.jpg")
-      center/cover no-repeat;
+    url("https://otakuusamagazine.com/wp-content/uploads/2025/02/dragonite-anime.jpg")
+    center/contain no-repeat;
 }
 
 .auth-title {
