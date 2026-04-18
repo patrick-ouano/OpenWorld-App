@@ -2,6 +2,7 @@
 // geolocation api from https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
 import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { apiUrl } from '../apiBase';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
 
@@ -84,7 +85,7 @@ function Map() {
 
   // fetches saved landmarks from the database
   const fetchLandmarks = async () => {
-    const res = await fetch('http://localhost:5000/api/landmarks');
+    const res = await fetch(apiUrl('/api/landmarks'));
     const data = await res.json();
     setLandmarks(data);
   };
@@ -102,7 +103,7 @@ function Map() {
 
   // saves a new landmark to the database
   const handleSave = async () => {
-    const res = await fetch('http://localhost:5000/api/landmarks', {
+    const res = await fetch(apiUrl('/api/landmarks'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -123,7 +124,7 @@ function Map() {
 
   // deletes a landmark from the database
   const deleteLandmark = async (id) => {
-    const res = await fetch(`http://localhost:5000/api/landmarks/${id}`, {
+    const res = await fetch(apiUrl(`/api/landmarks/${id}`), {
       method: 'DELETE',
     });
     if (res.ok) {
