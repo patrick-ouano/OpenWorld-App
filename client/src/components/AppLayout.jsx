@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import './AppLayout.css';
 
 const TABS = [
@@ -9,6 +9,10 @@ const TABS = [
 ];
 
 function AppLayout() {
+  const location = useLocation();
+  const darkInset =
+    location.pathname === '/app/badges' || location.pathname === '/app/profile';
+
   const userStr = localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
   const currentUser = userStr ? JSON.parse(userStr) : null;
   const isAdmin = currentUser?.role === 'Admin';
@@ -36,7 +40,11 @@ function AppLayout() {
         </div>
       </nav>
 
-      <main className="page-content">
+      <main
+        className={
+          'page-content' + (darkInset ? ' page-content--flush-dark' : '')
+        }
+      >
         <Outlet />
       </main>
     </div>

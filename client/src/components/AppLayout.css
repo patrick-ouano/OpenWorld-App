@@ -71,3 +71,8 @@
   position: relative;
   width: 100%;
 }
+
+/* Fills the nav offset band so Badges / Profile dark pages do not show #fafafa above them. */
+.page-content--flush-dark {
+  background: linear-gradient(165deg, #14101c 0%, #0c0e14 35%, #0a0c12 100%);
+}
