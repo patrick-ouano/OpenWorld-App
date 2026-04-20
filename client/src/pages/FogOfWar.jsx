@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useMap, TileLayer } from 'react-leaflet';
+import { useEffect, useRef, useState } from 'react';
+import { useMap } from 'react-leaflet';
 import {
   CELL_SIZE_METERS,
   REVEAL_RADIUS_METERS,
@@ -11,19 +11,27 @@ import {
 } from '../lib/explorationProgress';
 
 const SAVE_INTERVAL_MS = 15000;
-const MAX_RENDERED_CELLS = 350;
+const MAX_RENDERED_CELLS = 500;
+const FOG_OPACITY = 0.78;
 
 function FogOfWar() {
   const map = useMap();
   const [position, setPosition] = useState(null);
-  const [paneReady, setPaneReady] = useState(false);
   const [exploredCells, setExploredCells] = useState([]);
   const pendingCellsRef = useRef(new Set());
   const exploredCellSetRef = useRef(new Set());
+  const positionRef = useRef(null);
+  const cellsRef = useRef([]);
+  const drawRef = useRef(null);
 
   useEffect(() => {
     exploredCellSetRef.current = new Set(exploredCells);
+    cellsRef.current = exploredCells;
   }, [exploredCells]);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
 
   // loads saved explored cells when fog first mounts
   useEffect(() => {
@@ -62,17 +70,6 @@ function FogOfWar() {
     return () => clearInterval(timerId);
   }, []);
 
-  // creates the reveal pane before first paint so tilelayer can use it
-  useLayoutEffect(() => {
-    if (!map.getPane('fogRevealPane')) {
-      const pane = map.createPane('fogRevealPane');
-      pane.style.zIndex = '250';
-      // starts fully hidden until we have location data
-      pane.style.clipPath = 'circle(0px at 0px 0px)';
-    }
-    setPaneReady(true);
-  }, [map]);
-
   // watches user gps location
   // reference: https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition
   useEffect(() => {
@@ -105,69 +102,77 @@ function FogOfWar() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // converts meters to screen pixels at current zoom
-  function metersToPixelsAt(lat, lng, meters) {
-    const center = map.latLngToLayerPoint([lat, lng]);
-    const edge = map.latLngToLayerPoint([lat + (meters / 111320), lng]);
-    return Math.abs(center.y - edge.y);
-  }
-
-  // updates reveal mask whenever map moves or reveal data changes
+  // draws fog overlay and punches circular reveal holes
+  // reference: https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing
   useEffect(() => {
-    const pane = map.getPane('fogRevealPane');
-    if (!pane) return;
+    const container = map.getContainer();
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '450';
+    container.appendChild(canvas);
 
-    function updateRevealMask() {
-      const gradients = [];
-      const cellsToRender = exploredCells.slice(-MAX_RENDERED_CELLS);
-
-      cellsToRender.forEach((cell) => {
-        const latLng = cellKeyToLatLng(cell, CELL_SIZE_METERS);
-        if (!latLng) return;
-
-        const [lat, lng] = latLng;
-        const point = map.latLngToLayerPoint([lat, lng]);
-        const radiusPx = metersToPixelsAt(lat, lng, CELL_SIZE_METERS * 0.85);
-        gradients.push(`radial-gradient(circle ${Math.round(radiusPx)}px at ${Math.round(point.x)}px ${Math.round(point.y)}px, white 98%, transparent 100%)`);
-      });
-
-      if (position) {
-        const point = map.latLngToLayerPoint(position);
-        const radiusPx = metersToPixelsAt(position[0], position[1], REVEAL_RADIUS_METERS);
-        gradients.push(`radial-gradient(circle ${Math.round(radiusPx)}px at ${Math.round(point.x)}px ${Math.round(point.y)}px, white 98%, transparent 100%)`);
-      }
-
-      if (!gradients.length) {
-        pane.style.clipPath = 'circle(0px at 0px 0px)';
-        pane.style.maskImage = '';
-        pane.style.webkitMaskImage = '';
-        return;
-      }
-
-      // combines many circles into one mask for persistent reveal
-      // reference: https://developer.mozilla.org/en-US/docs/Web/CSS/mask-image
-      const maskValue = gradients.join(', ');
-      pane.style.clipPath = 'none';
-      pane.style.maskImage = maskValue;
-      pane.style.webkitMaskImage = maskValue;
-      pane.style.maskRepeat = 'no-repeat';
-      pane.style.webkitMaskRepeat = 'no-repeat';
+    // converts meters to screen pixels at a given latitude
+    function metersToPixelsAt(lat, meters) {
+      const center = map.latLngToContainerPoint([lat, 0]);
+      const edge = map.latLngToContainerPoint([lat + (meters / 111320), 0]);
+      return Math.abs(center.y - edge.y);
     }
 
-    updateRevealMask();
-    map.on('move zoom viewreset', updateRevealMask);
-    return () => map.off('move zoom viewreset', updateRevealMask);
-  }, [map, position, exploredCells]);
+    function draw() {
+      const size = map.getSize();
+      if (canvas.width !== size.x) canvas.width = size.x;
+      if (canvas.height !== size.y) canvas.height = size.y;
 
-  // renders color tiles only after pane exists
-  if (!paneReady) return null;
+      const ctx = canvas.getContext('2d');
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, size.x, size.y);
+      ctx.fillStyle = `rgba(0, 0, 0, ${FOG_OPACITY})`;
+      ctx.fillRect(0, 0, size.x, size.y);
 
-  return (
-    <TileLayer
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      pane="fogRevealPane"
-    />
-  );
+      // destination-out erases overlapping parts so the map shows through
+      ctx.globalCompositeOperation = 'destination-out';
+
+      const cells = cellsRef.current.slice(-MAX_RENDERED_CELLS);
+      cells.forEach((cell) => {
+        const latLng = cellKeyToLatLng(cell, CELL_SIZE_METERS);
+        if (!latLng) return;
+        const p = map.latLngToContainerPoint(latLng);
+        const r = metersToPixelsAt(latLng[0], CELL_SIZE_METERS * 0.9);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      if (positionRef.current) {
+        const pos = positionRef.current;
+        const p = map.latLngToContainerPoint(pos);
+        const r = metersToPixelsAt(pos[0], REVEAL_RADIUS_METERS);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    drawRef.current = draw;
+    draw();
+
+    map.on('move zoom viewreset resize', draw);
+    return () => {
+      map.off('move zoom viewreset resize', draw);
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      drawRef.current = null;
+    };
+  }, [map]);
+
+  // redraws canvas whenever reveal data changes
+  useEffect(() => {
+    if (drawRef.current) drawRef.current();
+  }, [position, exploredCells]);
+
+  return null;
 }
 
 export default FogOfWar;
