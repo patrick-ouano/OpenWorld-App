@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { BADGES, PLANNED_CHALLENGE_COUNT } from '../data/badges';
 import { getCompletedChallengeIds } from '../lib/challengeProgress';
 import './Badges.css';
@@ -164,10 +163,6 @@ function Badges() {
             </div>
           </div>
         </section>
-
-        <Link className="link-challenges" to="/app/challenges">
-          Challenges (coming soon) →
-        </Link>
       </div>
     </div>
   );

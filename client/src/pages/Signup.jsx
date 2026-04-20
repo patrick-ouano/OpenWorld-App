@@ -4,30 +4,48 @@ import { Link, useNavigate } from 'react-router-dom';
 import { apiUrl } from '../apiBase';
 import './Auth.css';
 
+const USERNAME_PATTERN = /^[\w.-]{3,32}$/;
+
 function Signup() {
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    setUsernameError('');
+    setEmailError('');
+    setPasswordError('');
 
     if (password !== confirmPassword) {
       setPasswordError('Passwords do not match.');
       return;
     }
 
-    setPasswordError('');
+    const usernameTrim = username.trim();
+    if (!usernameTrim) {
+      setUsernameError('Please enter a username.');
+      return;
+    }
+    if (!USERNAME_PATTERN.test(usernameTrim)) {
+      setUsernameError(
+        'Username must be 3–32 characters: letters, numbers, dots, underscores, or hyphens.'
+      );
+      return;
+    }
 
     try {
       const res = await fetch(apiUrl('/api/auth/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: fullName.trim(),
+          username: usernameTrim,
           email: email.trim().toLowerCase(),
           password: password,
         }),
@@ -36,12 +54,20 @@ function Signup() {
       const data = await res.json();
 
       if (!res.ok) {
-        setPasswordError(data.message || 'Signup failed.');
+        const msg = data.message || 'Signup failed.';
+        const lower = msg.toLowerCase();
+        if (lower.includes('email')) {
+          setEmailError(msg);
+        } else if (lower.includes('username') || lower.includes('characters')) {
+          setUsernameError(msg);
+        } else {
+          setPasswordError(msg);
+        }
         return;
       }
 
       navigate('/login');
-    } catch (err) {
+    } catch {
       setPasswordError('Could not connect to server.');
     }
   };
@@ -54,20 +80,32 @@ function Signup() {
             <h1 className="auth-title">Create account</h1>
             <p className="auth-subtitle">Sign up to get started.</p>
 
-            <form className="auth-form" onSubmit={handleSubmit}>
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
               <div className="auth-field">
-                <label className="auth-label" htmlFor="fullName">
-                  Full name
+                <label className="auth-label" htmlFor="username">
+                  Username
                 </label>
                 <input
                   className="auth-input"
-                  id="fullName"
-                  name="fullName"
+                  id="username"
+                  name="username"
                   type="text"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
+                  autoComplete="username"
+                  minLength={3}
+                  maxLength={32}
+                  value={username}
+                  onChange={(event) => {
+                    setUsername(event.target.value);
+                    if (usernameError) setUsernameError('');
+                  }}
                   required
                 />
+                {usernameError ? (
+                  <>
+                    <p className="auth-hint">This is shown on your profile.</p>
+                    <p className="auth-error">{usernameError}</p>
+                  </>
+                ) : null}
               </div>
 
               <div className="auth-field">
@@ -80,9 +118,13 @@ function Signup() {
                   name="email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (emailError) setEmailError('');
+                  }}
                   required
                 />
+                {emailError ? <p className="auth-error">{emailError}</p> : null}
               </div>
 
               <div className="auth-field">

@@ -95,19 +95,6 @@
   color: var(--gw-accent);
 }
 
-.badges-page .link-challenges {
-  display: inline-block;
-  margin-top: 0.75rem;
-  font-size: 0.85rem;
-  color: var(--gw-accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.badges-page .link-challenges:hover {
-  text-decoration: underline;
-}
-
 .badges-overflow {
   display: flex;
   align-items: center;

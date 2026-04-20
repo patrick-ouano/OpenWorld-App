@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { apiUrl } from '../apiBase';
+import { getProfileDisplayName } from '../lib/userDisplayName';
 import 'leaflet/dist/leaflet.css';
 import './Profile.css';
 
 const UF_CENTER = [29.6436, -82.3549];
 const MAP_ZOOM = 14;
-
-/** Replace this string when you wire the real display name from auth or API. */
-const DISPLAY_NAME_PLACEHOLDER = 'Username here';
 
 const FOG_STORAGE_KEY = 'openworld_fog_pct';
 
@@ -33,6 +31,16 @@ function readFogPercent() {
 
 function sortLandmarksRecent(landmarks) {
   return [...landmarks].sort((a, b) => String(b._id).localeCompare(String(a._id)));
+}
+
+function readAuthUser() {
+  try {
+    const raw =
+      localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 function ProfileMiniMap({ landmarks }) {
@@ -71,11 +79,23 @@ function Profile() {
   const [landmarks, setLandmarks] = useState([]);
   const [loadState, setLoadState] = useState('loading');
   const [fogPct, setFogPct] = useState(() => readFogPercent());
+  const [authUser, setAuthUser] = useState(() => readAuthUser());
 
   useEffect(() => {
     const onStorage = () => setFogPct(readFogPercent());
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  useEffect(() => {
+    const syncAuth = () => setAuthUser(readAuthUser());
+    syncAuth();
+    window.addEventListener('storage', syncAuth);
+    window.addEventListener('focus', syncAuth);
+    return () => {
+      window.removeEventListener('storage', syncAuth);
+      window.removeEventListener('focus', syncAuth);
+    };
   }, []);
 
   useEffect(() => {
@@ -99,6 +119,12 @@ function Profile() {
 
   const recent = useMemo(() => sortLandmarksRecent(landmarks).slice(0, 5), [landmarks]);
 
+  const displayName = useMemo(
+    () => getProfileDisplayName(authUser),
+    [authUser]
+  );
+  const usernameHandle = String(authUser?.username ?? '').trim().replace(/^@+/, '');
+
   return (
     <div className="profile-page">
       {/* whole profile sits on one grid — if you shuffle these blocks around, tweak .profile-align-grid in Profile.css too (I had the map column drift when top/bottom weren’t the same grid) */}
@@ -112,7 +138,12 @@ function Profile() {
             </div>
 
             <div className="profile-name-fog">
-              <h1 className="profile-display-name">{DISPLAY_NAME_PLACEHOLDER}</h1>
+              <h1 className="profile-display-name">{displayName}</h1>
+              {usernameHandle ? (
+                <p className="profile-username-meta" aria-label="Username">
+                  @{usernameHandle}
+                </p>
+              ) : null}
               <div className="profile-fog-inline">
                 <div className="profile-fog-labels">
                   <span>Fog of war revealed</span>

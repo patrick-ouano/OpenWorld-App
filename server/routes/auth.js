@@ -8,19 +8,41 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
+const USERNAME_RE = /^[\w.-]{3,32}$/;
+
 router.post('/signup', async (req, res) => {
   try {
     const { username, email, password } = req.body;
+
+    const usernameTrim = String(username ?? '').trim();
+    if (!USERNAME_RE.test(usernameTrim)) {
+      return res.status(400).json({
+        message:
+          'Username must be 3–32 characters: letters, numbers, dots, underscores, or hyphens.',
+      });
+    }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already in use' });
     }
 
+    const taken = await User.findOne({
+      username: {
+        $regex: new RegExp(
+          `^${usernameTrim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+          'i'
+        ),
+      },
+    });
+    if (taken) {
+      return res.status(400).json({ message: 'Username already taken' });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    const user = new User({ username, email, passwordHash });
+    const user = new User({ username: usernameTrim, email, passwordHash });
     await user.save();
 
     res.status(201).json({ message: 'User created successfully' });
@@ -54,6 +76,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
+        fullName: user.fullName || '',
         email: user.email,
         role: user.role,
       },
