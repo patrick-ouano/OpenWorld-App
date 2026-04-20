@@ -1,36 +1,80 @@
 // react-leaflet setup from https://react-leaflet.js.org/docs/start-setup/
 // geolocation api from https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
-import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import markerIconUrl from 'leaflet/dist/images/marker-icon.png';
 import { apiUrl } from '../apiBase';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
 import FogOfWar from './FogOfWar';
 
 const UF_CENTER = [29.6436, -82.3549];
+const PROXIMITY_METERS = 100;
 
-function LocationMarker() {
+// pin colors: blue (default), red (in proximity, unanswered), orange (answered)
+// Leaflet divIcon https://leafletjs.com/reference.html#divicon
+const nearIcon = L.divIcon({
+  className: 'pin-near-icon',
+  html: `<img src="${markerIconUrl}" class="pin-near-img" alt="" />`,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+const completedIcon = L.divIcon({
+  className: 'pin-completed-icon',
+  html: `<img src="${markerIconUrl}" class="pin-completed-img" alt="" />`,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+// Leaflet default icon https://leafletjs.com/reference.html#icon-default
+const defaultIcon = new L.Icon.Default();
+
+function LocationMarker({ onPosition }) {
   const [position, setPosition] = useState(null);
   const hasPannedRef = useRef(false);
+  // track last-reported position so we can throttle redundant state updates
+  const lastPosRef = useRef(null);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
 
     const onSuccess = (pos) => {
-      setPosition([pos.coords.latitude, pos.coords.longitude]);
+      const { latitude, longitude } = pos.coords;
+
+      // Geolocation throttle pattern from MDN https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
+      const prev = lastPosRef.current;
+      if (prev) {
+        const dLat = Math.abs(latitude - prev.latitude);
+        const dLng = Math.abs(longitude - prev.longitude);
+        const now = Date.now();
+
+        if (dLat < 0.00003 && dLng < 0.00003 && now - prev.ts < 2000) return;
+      }
+      lastPosRef.current = { latitude, longitude, ts: Date.now() };
+
+      setPosition([latitude, longitude]);
+      onPosition?.({ latitude, longitude });
     };
     const onErr = () => setPosition(null);
-    const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+
+    // PositionOptions https://developer.mozilla.org/en-US/docs/Web/API/PositionOptions
+    const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 3000 };
 
     navigator.geolocation.getCurrentPosition(onSuccess, onErr, opts);
+    // watchPosition https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition
     const watchId = navigator.geolocation.watchPosition(onSuccess, onErr, opts);
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [onPosition]);
 
   if (!position) return null;
 
   return (
     <>
+      {/* CircleMarker https://leafletjs.com/reference.html#circlemarker */}
       <CircleMarker
         center={position}
         radius={12}
@@ -57,8 +101,12 @@ function PanToUser({ position, hasPannedRef }) {
 }
 
 function MapClickHandler({ draftPin, setDraftPin }) {
+  // useMapEvents https://react-leaflet.js.org/docs/api-map/#usemapevents
   useMapEvents({
     click: (e) => {
+      const target = e.originalEvent?.target;
+      if (target && target.closest && target.closest('.leaflet-popup')) return;
+
       // clicking map while typing in popup was creating pins - this fixes it
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -73,26 +121,302 @@ function MapClickHandler({ draftPin, setDraftPin }) {
   return null;
 }
 
-function Map() {
-  const userStr = localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
-  const currentUser = userStr ? JSON.parse(userStr) : null;
-  const isAdmin = currentUser?.role === 'Admin';
+// Leaflet popupopen event https://leafletjs.com/reference.html#map-popupopen
+// useRef pattern https://react.dev/reference/react/useRef
+function PopupOpenDispatcher({ popupOpenSetters }) {
+  // useMapEvents https://react-leaflet.js.org/docs/api-map/#usemapevents
+  useMapEvents({
+    popupopen: (e) => {
+      // e.popup._source is the Leaflet layer that owns the popup
+      const src = e.popup?._source?.getLatLng?.();
+      if (!src) return;
+      const setter = popupOpenSetters.current.get(`${src.lat},${src.lng}`);
+      setter?.();
+    },
+  });
+  return null;
+}
+
+function LandmarkPopup({
+  lm,
+  isAdmin,
+  isNear,
+  isCompleted,
+  triviaDoc,
+  currentUser,
+  onCorrect,
+  onDelete,
+  onTriviaSaved,
+  popupOpenSetters,
+}) {
+  const map = useMap();
+  const [view, setView] = useState('info');
+  const [submitting, setSubmitting] = useState(false);
+  const [triviaError, setTriviaError] = useState('');
+
+  const hasTrivia = !!triviaDoc;
+
+  const [newQuestion, setNewQuestion] = useState('');
+  const [newOptions, setNewOptions] = useState(['', '', '']);
+  const [newCorrectIndex, setNewCorrectIndex] = useState(0);
+
+  const coordKey = `${lm.coordinates.latitude},${lm.coordinates.longitude}`;
+
+  useEffect(() => {
+    const shouldAutoOpenTrivia = !isAdmin && isNear && hasTrivia && !isCompleted;
+    popupOpenSetters.current.set(coordKey, () => {
+      setView(shouldAutoOpenTrivia ? 'trivia' : 'info');
+    });
+    return () => {
+      popupOpenSetters.current.delete(coordKey);
+    };
+  }, [coordKey, isAdmin, isNear, hasTrivia, isCompleted, popupOpenSetters]);
+
+  // fetch https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+  const handleAnswer = async (idx) => {
+    if (submitting || !triviaDoc) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(apiUrl(`/api/trivia/${triviaDoc._id}/answer`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser?.id,
+          answerIndex: idx,
+        }),
+      });
+      const data = await res.json();
+      if (data.correct) {
+        onCorrect(triviaDoc._id, data.completedTrivia);
+        setView('info');
+        map.closePopup();
+      } else {
+        setView('incorrect');
+      }
+    } catch {
+      setView('incorrect');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetAddTrivia = () => {
+    setNewQuestion('');
+    setNewOptions(['', '', '']);
+    setNewCorrectIndex(0);
+  };
+
+  const handleSaveTrivia = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setTriviaError('');
+    try {
+      let res;
+      if (hasTrivia) {
+        res = await fetch(apiUrl(`/api/trivia/${triviaDoc._id}`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: newQuestion.trim(),
+            options: newOptions.map((o) => o.trim()),
+            correctIndex: newCorrectIndex,
+          }),
+        });
+      } else {
+        res = await fetch(apiUrl('/api/trivia'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            coordinates: {
+              latitude: lm.coordinates.latitude,
+              longitude: lm.coordinates.longitude,
+            },
+            question: newQuestion.trim(),
+            options: newOptions.map((o) => o.trim()),
+            correctIndex: newCorrectIndex,
+          }),
+        });
+      }
+      if (res.ok) {
+        await onTriviaSaved();
+        setView('info');
+      } else {
+        const body = await res.json().catch(() => ({}));
+        const msg = body.error || `Server error ${res.status}`;
+        setTriviaError(msg);
+        console.error('[handleSaveTrivia]', res.status, body, 'id:', triviaDoc?._id);
+      }
+    } catch (err) {
+      setTriviaError('Network error — check the server.');
+      console.error('[handleSaveTrivia] fetch failed', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canSaveTrivia =
+    newQuestion.trim() !== '' && newOptions.every((o) => o.trim() !== '');
+
+  if (view === 'trivia' && hasTrivia) {
+    return (
+      <>
+        <p className="trivia-question">{triviaDoc.question}</p>
+        <div className="trivia-options">
+          {triviaDoc.options.map((opt, i) => (
+            <button
+              key={i}
+              className="trivia-option-btn"
+              disabled={submitting}
+              onClick={() => handleAnswer(i)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  if (view === 'incorrect') {
+    return (
+      <>
+        <h3>{lm.name}</h3>
+        <p className="trivia-incorrect">Incorrect, try again.</p>
+        <div className="popup-buttons trivia-form-buttons">
+          <button className="save-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('trivia'); }}>Try again</button>
+          <button className="cancel-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('info'); }}>Back</button>
+        </div>
+      </>
+    );
+  }
+
+  if (view === 'triviaForm') {
+    return (
+      <>
+        <h3>{hasTrivia ? 'Edit Trivia' : 'Add Trivia'}</h3>
+        <div className="trivia-admin-section">
+          <textarea
+            placeholder="Trivia question"
+            maxLength={500}
+            value={newQuestion}
+            onChange={(e) => setNewQuestion(e.target.value)}
+          />
+          {newOptions.map((opt, i) => (
+            <div key={i} className="trivia-admin-option-row">
+              <input
+                type="radio"
+                name="trivia-correct"
+                checked={newCorrectIndex === i}
+                onChange={() => setNewCorrectIndex(i)}
+                title="Mark as correct answer"
+              />
+              <input
+                type="text"
+                placeholder={`Option ${i + 1}`}
+                value={opt}
+                onChange={(e) => {
+                  const next = [...newOptions];
+                  next[i] = e.target.value;
+                  setNewOptions(next);
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        {triviaError && <p className="trivia-save-error">{triviaError}</p>}
+        <div className="popup-buttons trivia-form-buttons">
+          <button
+            className="save-btn"
+            disabled={!canSaveTrivia || submitting}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleSaveTrivia(); }}
+          >
+            {submitting ? 'Saving…' : 'Save Trivia'}
+          </button>
+          <button
+            className="cancel-btn"
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); map.closePopup(); setView('info'); }}
+          >
+            Cancel
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <h3>{lm.name}</h3>
+      <span className="category-badge">{lm.category}</span>
+      <p>{lm.description}</p>
+      {isAdmin && (
+        <div className="popup-buttons">
+          <button
+            className="add-trivia-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (hasTrivia) {
+                setNewQuestion(triviaDoc.question);
+                setNewOptions([...triviaDoc.options]);
+                setNewCorrectIndex(triviaDoc.correctIndex);
+              } else {
+                resetAddTrivia();
+              }
+              setView('triviaForm');
+            }}
+          >
+            {hasTrivia ? 'Edit Trivia' : 'Add Trivia'}
+          </button>
+          <button
+            className="delete-pin-btn"
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(lm._id); }}
+          >
+            Delete Pin
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MapPage() {
+  // per session. useMemo https://react.dev/reference/react/useMemo
+  const { currentUser, isAdmin } = useMemo(() => {
+    const userStr = localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
+    const cu = userStr ? JSON.parse(userStr) : null;
+    return { currentUser: cu, isAdmin: cu?.role === 'Admin' };
+  }, []);
 
   const [draftPin, setDraftPin] = useState(null);
   const [pinName, setPinName] = useState('');
   const [pinCategory, setPinCategory] = useState('');
   const [pinDescription, setPinDescription] = useState('');
   const [landmarks, setLandmarks] = useState([]);
+  const [trivia, setTrivia] = useState([]);
+  const [userPos, setUserPos] = useState(null);
+  const [completedTriviaIds, setCompletedTriviaIds] = useState(
+    () => new Set(currentUser?.completedTrivia ?? [])
+  );
 
-  // fetches saved landmarks from the database
+  // useRef https://react.dev/reference/react/useRef
+  const popupOpenSetters = useRef(new Map());
+
+  // fetch https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
   const fetchLandmarks = async () => {
     const res = await fetch(apiUrl('/api/landmarks'));
     const data = await res.json();
     setLandmarks(data);
   };
 
+  const fetchTrivia = async () => {
+    const res = await fetch(apiUrl('/api/trivia'));
+    const data = await res.json();
+    setTrivia(data);
+  };
+
   useEffect(() => {
     fetchLandmarks();
+    fetchTrivia();
   }, []);
 
   const handleCancel = () => {
@@ -102,7 +426,6 @@ function Map() {
     setPinDescription('');
   };
 
-  // saves a new landmark to the database
   const handleSave = async () => {
     const res = await fetch(apiUrl('/api/landmarks'), {
       method: 'POST',
@@ -115,23 +438,61 @@ function Map() {
       }),
     });
     if (res.ok) {
-      setDraftPin(null);
-      setPinName('');
-      setPinCategory('');
-      setPinDescription('');
+      handleCancel();
       fetchLandmarks();
     }
   };
 
-  // deletes a landmark from the database
   const deleteLandmark = async (id) => {
     const res = await fetch(apiUrl(`/api/landmarks/${id}`), {
       method: 'DELETE',
     });
     if (res.ok) {
       fetchLandmarks();
+      fetchTrivia();
     }
   };
+
+  const handleCorrectAnswer = (triviaId, completedFromServer) => {
+    setCompletedTriviaIds((prev) => {
+      const next = new Set(prev);
+      next.add(triviaId);
+      return next;
+    });
+
+    // persist on the stored user so completedTrivia survives a page refresh
+    const listFromServer = Array.isArray(completedFromServer) ? completedFromServer : null;
+    const storageKey = 'authUser';
+    const stored =
+      localStorage.getItem(storageKey) || sessionStorage.getItem(storageKey);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored);
+      // $addToSet equivalent on the client array
+      // MongoDB $addToSet https://www.mongodb.com/docs/manual/reference/operator/update/addToSet/
+      parsed.completedTrivia = listFromServer
+        ?? Array.from(new Set([...(parsed.completedTrivia || []), triviaId]));
+      const target = localStorage.getItem(storageKey) ? localStorage : sessionStorage;
+      target.setItem(storageKey, JSON.stringify(parsed));
+    } catch {
+      // ignore bad JSON
+    }
+  };
+
+  // useMemo https://react.dev/reference/react/useMemo
+  const triviaByCoord = useMemo(() => {
+    const m = new Map();
+    for (const t of trivia) {
+      m.set(`${t.coordinates.latitude},${t.coordinates.longitude}`, t);
+    }
+    return m;
+  }, [trivia]);
+
+  // useCallback https://react.dev/reference/react/useCallback
+  const findTriviaForPin = useCallback(
+    (lm) => triviaByCoord.get(`${lm.coordinates.latitude},${lm.coordinates.longitude}`),
+    [triviaByCoord]
+  );
 
   const isFormValid =
     pinName.trim() !== '' &&
@@ -147,26 +508,78 @@ function Map() {
         maxZoom={18}
         scrollWheelZoom={true}
       >
+        {/* OSM tile layer — tile URL from https://wiki.openstreetmap.org/wiki/Tile_servers
+            attribution required by https://www.openstreetmap.org/copyright */}
         <TileLayer
           className="fog-gray"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FogOfWar />
-        <LocationMarker />
+        <LocationMarker onPosition={setUserPos} />
+        {/* Circle draws the 100 m proximity radius in admin view
+            Leaflet Circle https://leafletjs.com/reference.html#circle */}
+        {isAdmin && userPos && (
+          <Circle
+            center={[userPos.latitude, userPos.longitude]}
+            radius={PROXIMITY_METERS}
+            pathOptions={{
+              color: '#f26a21',
+              weight: 2,
+              dashArray: '6 6',
+              fillColor: '#f26a21',
+              fillOpacity: 0.08,
+            }}
+          />
+        )}
         {isAdmin && <MapClickHandler draftPin={draftPin} setDraftPin={setDraftPin} />}
 
+        {/* single dispatcher handles popupopen for all pins in one listener */}
+        <PopupOpenDispatcher popupOpenSetters={popupOpenSetters} />
+
         {/* permanent landmarks from db */}
-        {landmarks.map((lm) => (
-          <Marker key={lm._id} position={[lm.coordinates.latitude, lm.coordinates.longitude]}>
-            <Popup>
-              <h3>{lm.name}</h3>
-              <span className="category-badge">{lm.category}</span>
-              <p>{lm.description}</p>
-              {isAdmin && <button className="delete-pin-btn" onClick={() => deleteLandmark(lm._id)}>Delete Pin</button>}
-            </Popup>
-          </Marker>
-        ))}
+        {landmarks.map((lm) => {
+          const triviaDoc = findTriviaForPin(lm);
+          const isCompleted = !!triviaDoc && completedTriviaIds.has(triviaDoc._id);
+
+          // skip distance math for pins the user can't interact with
+          let isNear = false;
+          if (triviaDoc && !isCompleted && userPos) {
+            // math reference https://en.wikipedia.org/wiki/Decimal_degrees
+            const dLat = Math.abs(userPos.latitude - lm.coordinates.latitude);
+            const dLng = Math.abs(userPos.longitude - lm.coordinates.longitude);
+            if (dLat < 0.0015 && dLng < 0.0015) {
+              // Leaflet distanceTo (Haversine) https://leafletjs.com/reference.html#latlng-distanceto
+              const distance = L.latLng(userPos.latitude, userPos.longitude).distanceTo(
+                L.latLng(lm.coordinates.latitude, lm.coordinates.longitude)
+              );
+              isNear = distance <= PROXIMITY_METERS;
+            }
+          }
+
+          return (
+            <Marker
+              key={lm._id}
+              position={[lm.coordinates.latitude, lm.coordinates.longitude]}
+              icon={isCompleted ? completedIcon : isNear ? nearIcon : defaultIcon}
+            >
+              <Popup>
+                <LandmarkPopup
+                  lm={lm}
+                  isAdmin={isAdmin}
+                  isNear={isNear}
+                  isCompleted={isCompleted}
+                  triviaDoc={triviaDoc}
+                  currentUser={currentUser}
+                  onCorrect={handleCorrectAnswer}
+                  onDelete={deleteLandmark}
+                  onTriviaSaved={fetchTrivia}
+                  popupOpenSetters={popupOpenSetters}
+                />
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* draft pin for creating new landmark */}
         {draftPin && (
@@ -216,4 +629,4 @@ function Map() {
   );
 }
 
-export default Map;
+export default MapPage;

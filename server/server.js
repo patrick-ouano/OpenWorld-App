@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import landmarkRoutes from './routes/landmarks.js';
 import authRoutes from './routes/auth.js';
+import triviaRoutes from './routes/trivia.js';
 
 dns.setServers(['8.8.8.8', '8.8.4.4']); // fixes dns issues with mongodb connection 
 // apparently is a node.js on windows issue 
@@ -24,6 +25,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/landmarks', landmarkRoutes);
+app.use('/api/trivia', triviaRoutes);
 
 const port = Number(process.env.PORT) || 5000;
 app.listen(port, () => console.log(`Server on port ${port}`));
