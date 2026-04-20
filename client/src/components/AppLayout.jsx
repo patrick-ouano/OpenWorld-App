@@ -1,10 +1,9 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Map, Trophy, CircleStar, User } from 'lucide-react';
+import { Map, CircleStar, User } from 'lucide-react';
 import './AppLayout.css';
 
 const TABS = [
   { label: 'Map', path: '/app/map', Icon: Map },
-  { label: 'Challenges', path: '/app/challenges', Icon: Trophy },
   { label: 'Badges', path: '/app/badges', Icon: CircleStar },
   { label: 'Profile', path: '/app/profile', Icon: User },
 ];
