@@ -116,3 +116,7 @@
 .delete-pin-btn:hover {
   text-decoration: underline;
 }
+
+.fog-gray {
+  filter: brightness(0.1);
+}

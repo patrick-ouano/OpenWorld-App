@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, useMapEve
 import { apiUrl } from '../apiBase';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
+import FogOfWar from './FogOfWar';
 
 const UF_CENTER = [29.6436, -82.3549];
 
@@ -147,9 +148,11 @@ function Map() {
         scrollWheelZoom={true}
       >
         <TileLayer
+          className="fog-gray"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <FogOfWar />
         <LocationMarker />
         {isAdmin && <MapClickHandler draftPin={draftPin} setDraftPin={setDraftPin} />}
 
