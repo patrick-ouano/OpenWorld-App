@@ -188,9 +188,11 @@ function Map() {
               </select>
               <textarea
                 placeholder="Description"
+                maxLength={500}
                 value={pinDescription}
                 onChange={(e) => setPinDescription(e.target.value)}
               />
+              <small>{pinDescription.length}/500</small>
               <div className="popup-buttons">
                 <button
                   className="save-btn"
