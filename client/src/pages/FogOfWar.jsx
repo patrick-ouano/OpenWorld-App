@@ -4,45 +4,46 @@ import { useMap, TileLayer } from 'react-leaflet';
 // How many meters around the user to show in full color (shared with Map.jsx pin proximity)
 export const REVEAL_RADIUS = 200;
 
-function FogOfWar() {
+/** @param {{ revealAt: { latitude: number; longitude: number } | null }} props — same source as LocationMarker / admin Circle */
+function FogOfWar({ revealAt }) {
   const map = useMap();
-  const [position, setPosition] = useState(null);
   const [paneReady, setPaneReady] = useState(false);
 
   // Create the "reveal" pane BEFORE first paint (useLayoutEffect)
   // so the TileLayer can safely render into it
   useLayoutEffect(() => {
-    if (!map.getPane('fogRevealPane')) {
-      const pane = map.createPane('fogRevealPane');
+    let pane = map.getPane('fogRevealPane');
+    if (!pane) {
+      pane = map.createPane('fogRevealPane');
       pane.style.zIndex = '250';
       // Start fully hidden until we know where the user is
       pane.style.clipPath = 'circle(0px at 0px 0px)';
     }
+    pane.style.display = '';
     setPaneReady(true);
   }, [map]);
 
-  // Watch the user's GPS position
+  // Hide the reveal pane when fog preview unmounts so no empty high-z pane sits above the map
   useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    const onPosition = (geo) => {
-      setPosition([geo.coords.latitude, geo.coords.longitude]);
+    return () => {
+      const pane = map.getPane('fogRevealPane');
+      if (pane) {
+        pane.style.display = 'none';
+        pane.style.clipPath = 'none';
+      }
     };
-    const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+  }, [map]);
 
-    navigator.geolocation.getCurrentPosition(onPosition, () => {}, opts);
-    const watchId = navigator.geolocation.watchPosition(onPosition, () => {}, opts);
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
-
-  // Update the clip circle whenever the map moves/zooms or user moves
+  // Clip uses the same position as LocationMarker / pin logic — do not use a second geolocation
+  // subscription or the reveal circle stays at 0px (whole map dark) while userPos is already set.
   useEffect(() => {
-    if (!position) return;
+    if (!revealAt) return;
     const pane = map.getPane('fogRevealPane');
     if (!pane) return;
 
+    const position = [revealAt.latitude, revealAt.longitude];
+
     function updateClip() {
-      // Convert the user's GPS position to pixel coords in the pane
       const center = map.latLngToLayerPoint(position);
 
       // Convert REVEAL_RADIUS (meters) to pixels at the current zoom
@@ -57,7 +58,7 @@ function FogOfWar() {
     updateClip();
     map.on('move zoom viewreset', updateClip);
     return () => map.off('move zoom viewreset', updateClip);
-  }, [map, position]);
+  }, [map, revealAt?.latitude, revealAt?.longitude]);
 
   // Only render the color TileLayer after the pane exists
   if (!paneReady) return null;

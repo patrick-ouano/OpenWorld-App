@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import markerIconUrl from 'leaflet/dist/images/marker-icon.png';
-import { CloudFog, CloudOff } from 'lucide-react';
 import { apiUrl } from '../apiBase';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
@@ -282,8 +281,7 @@ function LandmarkPopup({
         <h3>{lm.name}</h3>
         <p className="trivia-incorrect">Incorrect, try again.</p>
         <div className="popup-buttons trivia-form-buttons">
-          <button className="save-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('trivia'); }}>Try again</button>
-          <button className="cancel-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('info'); }}>Back</button>
+          <button className="save-btn trivia-try-again-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('trivia'); }}>Try again</button>
         </div>
       </>
     );
@@ -400,16 +398,6 @@ function MapPage() {
   // useRef https://react.dev/reference/react/useRef
   const popupOpenSetters = useRef(new Map());
 
-  const [adminFogEnabled, setAdminFogEnabled] = useState(
-    () => localStorage.getItem('admin_fog_enabled') !== 'false'
-  );
-  useEffect(() => {
-    localStorage.setItem('admin_fog_enabled', String(adminFogEnabled));
-  }, [adminFogEnabled]);
-
-  // Explorers always see fog; only admins can turn it off via the toggle.
-  const fogShown = isAdmin ? adminFogEnabled : true;
-
   // fetch https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
   const fetchLandmarks = async () => {
     const res = await fetch(apiUrl('/api/landmarks'));
@@ -510,17 +498,6 @@ function MapPage() {
 
   return (
     <div className="map-page">
-      {isAdmin && (
-        <button
-          type="button"
-          className="fog-toggle-btn"
-          onClick={() => setAdminFogEnabled((v) => !v)}
-          title={adminFogEnabled ? 'Disable fog of war' : 'Enable fog of war'}
-          aria-pressed={adminFogEnabled}
-        >
-          {adminFogEnabled ? <CloudFog size={20} aria-hidden /> : <CloudOff size={20} aria-hidden />}
-        </button>
-      )}
       <MapContainer
         center={UF_CENTER}
         zoom={15}
@@ -531,11 +508,11 @@ function MapPage() {
         {/* OSM tile layer — tile URL from https://wiki.openstreetmap.org/wiki/Tile_servers
             attribution required by https://www.openstreetmap.org/copyright */}
         <TileLayer
-          className={fogShown ? 'fog-gray' : undefined}
+          className="fog-gray"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {fogShown && <FogOfWar />}
+        <FogOfWar revealAt={userPos} />
         <LocationMarker onPosition={setUserPos} />
         {/* Circle draws the fog reveal radius in admin view
             Leaflet Circle https://leafletjs.com/reference.html#circle */}
