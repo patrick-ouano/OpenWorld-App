@@ -44,6 +44,27 @@ export function toCellKey(lat, lng, cellSizeMeters = CELL_SIZE_METERS) {
   return `${latIndex}:${lngIndex}`;
 }
 
+// converts a grid cell key back to approximate gps center
+export function cellKeyToLatLng(cellKey, cellSizeMeters = CELL_SIZE_METERS) {
+  if (!cellKey || typeof cellKey !== 'string') return null;
+
+  const parts = cellKey.split(':');
+  if (parts.length !== 2) return null;
+
+  const latIndex = Number(parts[0]);
+  const lngIndex = Number(parts[1]);
+  if (!Number.isFinite(latIndex) || !Number.isFinite(lngIndex)) return null;
+
+  const latStep = metersToLatDegrees(cellSizeMeters);
+  const latCenter = (latIndex + 0.5) * latStep;
+
+  const lngStep = metersToLngDegrees(cellSizeMeters, latCenter);
+  if (!lngStep) return null;
+  const lngCenter = (lngIndex + 0.5) * lngStep;
+
+  return [latCenter, lngCenter];
+}
+
 // checks if a point is inside radius using simple meter conversion
 function isWithinRadiusMeters(centerLat, centerLng, lat, lng, radiusMeters) {
   const dx = (lng - centerLng) * 111320 * Math.cos((centerLat * Math.PI) / 180);

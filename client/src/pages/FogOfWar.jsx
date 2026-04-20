@@ -1,32 +1,102 @@
-import { useEffect, useState, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useMap, TileLayer } from 'react-leaflet';
+import {
+  CELL_SIZE_METERS,
+  REVEAL_RADIUS_METERS,
+  cellKeyToLatLng,
+  fetchExploredCells,
+  getStoredAuthToken,
+  getCellsInRadius,
+  saveExploredCells,
+} from '../lib/explorationProgress';
 
-// How many meters around the user to show in full color
-const REVEAL_RADIUS = 200;
+const SAVE_INTERVAL_MS = 15000;
+const MAX_RENDERED_CELLS = 350;
 
 function FogOfWar() {
   const map = useMap();
   const [position, setPosition] = useState(null);
   const [paneReady, setPaneReady] = useState(false);
+  const [exploredCells, setExploredCells] = useState([]);
+  const pendingCellsRef = useRef(new Set());
+  const exploredCellSetRef = useRef(new Set());
 
-  // Create the "reveal" pane BEFORE first paint (useLayoutEffect)
-  // so the TileLayer can safely render into it
+  useEffect(() => {
+    exploredCellSetRef.current = new Set(exploredCells);
+  }, [exploredCells]);
+
+  // loads saved explored cells when fog first mounts
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCells() {
+      const savedCells = await fetchExploredCells();
+      if (!isMounted || !savedCells.length) return;
+      setExploredCells(savedCells);
+    }
+
+    loadCells();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // saves queued cells every few seconds instead of every gps update
+  useEffect(() => {
+    const timerId = setInterval(async () => {
+      if (pendingCellsRef.current.size === 0) return;
+
+      const cellsToSave = Array.from(pendingCellsRef.current);
+      pendingCellsRef.current.clear();
+
+      const saved = await saveExploredCells(cellsToSave);
+      if (saved.length > 0) {
+        setExploredCells(saved);
+        return;
+      }
+
+      // puts cells back in queue when request fails
+      cellsToSave.forEach((cell) => pendingCellsRef.current.add(cell));
+    }, SAVE_INTERVAL_MS);
+
+    return () => clearInterval(timerId);
+  }, []);
+
+  // creates the reveal pane before first paint so tilelayer can use it
   useLayoutEffect(() => {
     if (!map.getPane('fogRevealPane')) {
       const pane = map.createPane('fogRevealPane');
       pane.style.zIndex = '250';
-      // Start fully hidden until we know where the user is
+      // starts fully hidden until we have location data
       pane.style.clipPath = 'circle(0px at 0px 0px)';
     }
     setPaneReady(true);
   }, [map]);
 
-  // Watch the user's GPS position
+  // watches user gps location
+  // reference: https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition
   useEffect(() => {
     if (!navigator.geolocation) return;
 
     const onPosition = (geo) => {
-      setPosition([geo.coords.latitude, geo.coords.longitude]);
+      const lat = geo.coords.latitude;
+      const lng = geo.coords.longitude;
+      setPosition([lat, lng]);
+
+      const cellsInRadius = getCellsInRadius(lat, lng, REVEAL_RADIUS_METERS, CELL_SIZE_METERS);
+      if (!cellsInRadius.length) return;
+
+      const newCells = cellsInRadius.filter((cell) => !exploredCellSetRef.current.has(cell));
+      if (!newCells.length) return;
+
+      newCells.forEach((cell) => {
+        exploredCellSetRef.current.add(cell);
+        if (getStoredAuthToken()) {
+          pendingCellsRef.current.add(cell);
+        }
+      });
+
+      setExploredCells((prev) => [...prev, ...newCells]);
     };
     const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
@@ -35,31 +105,61 @@ function FogOfWar() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // Update the clip circle whenever the map moves/zooms or user moves
+  // converts meters to screen pixels at current zoom
+  function metersToPixelsAt(lat, lng, meters) {
+    const center = map.latLngToLayerPoint([lat, lng]);
+    const edge = map.latLngToLayerPoint([lat + (meters / 111320), lng]);
+    return Math.abs(center.y - edge.y);
+  }
+
+  // updates reveal mask whenever map moves or reveal data changes
   useEffect(() => {
-    if (!position) return;
     const pane = map.getPane('fogRevealPane');
     if (!pane) return;
 
-    function updateClip() {
-      // Convert the user's GPS position to pixel coords in the pane
-      const center = map.latLngToLayerPoint(position);
+    function updateRevealMask() {
+      const gradients = [];
+      const cellsToRender = exploredCells.slice(-MAX_RENDERED_CELLS);
 
-      // Convert REVEAL_RADIUS (meters) to pixels at the current zoom
-      // 1 degree of latitude ≈ 111,320 meters
-      const degOffset = REVEAL_RADIUS / 111320;
-      const edge = map.latLngToLayerPoint([position[0] + degOffset, position[1]]);
-      const radiusPx = Math.abs(center.y - edge.y);
+      cellsToRender.forEach((cell) => {
+        const latLng = cellKeyToLatLng(cell, CELL_SIZE_METERS);
+        if (!latLng) return;
 
-      pane.style.clipPath = `circle(${radiusPx}px at ${center.x}px ${center.y}px)`;
+        const [lat, lng] = latLng;
+        const point = map.latLngToLayerPoint([lat, lng]);
+        const radiusPx = metersToPixelsAt(lat, lng, CELL_SIZE_METERS * 0.85);
+        gradients.push(`radial-gradient(circle ${Math.round(radiusPx)}px at ${Math.round(point.x)}px ${Math.round(point.y)}px, white 98%, transparent 100%)`);
+      });
+
+      if (position) {
+        const point = map.latLngToLayerPoint(position);
+        const radiusPx = metersToPixelsAt(position[0], position[1], REVEAL_RADIUS_METERS);
+        gradients.push(`radial-gradient(circle ${Math.round(radiusPx)}px at ${Math.round(point.x)}px ${Math.round(point.y)}px, white 98%, transparent 100%)`);
+      }
+
+      if (!gradients.length) {
+        pane.style.clipPath = 'circle(0px at 0px 0px)';
+        pane.style.maskImage = '';
+        pane.style.webkitMaskImage = '';
+        return;
+      }
+
+      // combines many circles into one mask for persistent reveal
+      // reference: https://developer.mozilla.org/en-US/docs/Web/CSS/mask-image
+      const maskValue = gradients.join(', ');
+      pane.style.clipPath = 'none';
+      pane.style.maskImage = maskValue;
+      pane.style.webkitMaskImage = maskValue;
+      pane.style.maskRepeat = 'no-repeat';
+      pane.style.webkitMaskRepeat = 'no-repeat';
     }
 
-    updateClip();
-    map.on('move zoom viewreset', updateClip);
-    return () => map.off('move zoom viewreset', updateClip);
-  }, [map, position]);
+    updateRevealMask();
+    map.on('move zoom viewreset', updateRevealMask);
+    return () => map.off('move zoom viewreset', updateRevealMask);
+  }, [map, position, exploredCells]);
 
-  // Only render the color TileLayer after the pane exists
+  // renders color tiles only after pane exists
   if (!paneReady) return null;
 
   return (
