@@ -1,8 +1,8 @@
 import { useEffect, useState, useLayoutEffect } from 'react';
 import { useMap, TileLayer } from 'react-leaflet';
 
-// How many meters around the user to show in full color
-const REVEAL_RADIUS = 200;
+// How many meters around the user to show in full color (shared with Map.jsx pin proximity)
+export const REVEAL_RADIUS = 200;
 
 function FogOfWar() {
   const map = useMap();

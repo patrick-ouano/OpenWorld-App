@@ -7,6 +7,30 @@
   z-index: 1;
 }
 
+/* Admin-only fog toggle — above map panes, below popups (Leaflet popup ~700) */
+.fog-toggle-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  color: #333;
+}
+
+.fog-toggle-btn:hover {
+  background: #f4f4f4;
+}
+
 .map-page .leaflet-container {
   height: 100%;
   width: 100%;
