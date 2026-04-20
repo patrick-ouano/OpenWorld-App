@@ -1,0 +1,342 @@
+.profile-page {
+  min-height: calc(100vh - 110px);
+  padding: 0.25rem clamp(0.65rem, 2.5vw, 2rem) 1.1rem;
+  background: linear-gradient(165deg, #0c0e14 0%, #141824 45%, #0a0c12 100%);
+  color: #e8eaef;
+}
+
+/* used to max out ~1100px which looked dinky on a wide monitor; bumped this + horizontal clamp() on .profile-page so it breathes on desktop but isn’t edge-to-edge on mobile */
+.profile-inner {
+  width: 100%;
+  max-width: min(1480px, 100%);
+  margin: 0 auto;
+}
+
+@media (min-width: 1400px) {
+  .profile-inner {
+    max-width: min(1600px, 96vw);
+  }
+}
+
+/* single grid instead of two separate rows — fixes the “username column ≠ map column” alignment thing */
+.profile-align-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(300px, min(44vh, 480px));
+  column-gap: clamp(0.65rem, 1.5vw, 1.1rem);
+  row-gap: 0.3rem;
+  align-items: stretch;
+}
+
+.profile-align-grid > .profile-map-panel,
+.profile-align-grid > .profile-discoveries-panel {
+  align-self: stretch;
+  min-height: 0;
+}
+
+.profile-row-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  margin: 0;
+  align-self: center;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08) 20%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.08) 80%,
+    transparent
+  );
+}
+
+@media (max-width: 768px) {
+  .profile-align-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto minmax(220px, 280px) auto;
+  }
+}
+
+.profile-identity-wide {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: rgba(20, 24, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 0.85rem 1.1rem 0.95rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.profile-identity-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.15rem;
+}
+
+.profile-avatar-wrap {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: linear-gradient(145deg, #1a237e, #fa4616);
+  padding: 3px;
+}
+
+.profile-avatar-inner {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: radial-gradient(circle at 30% 25%, #2a3358, #0f1118 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+  color: #fff;
+}
+
+.profile-name-fog {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+/* display name was getting lost next to the map; bumped the clamp + added the 900px step — if real usernames wrap badly, nudge the max down a bit */
+.profile-display-name {
+  margin: 0;
+  width: 100%;
+  font-size: clamp(2rem, 5vw + 1rem, 3.6rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  text-align: left;
+  word-wrap: break-word;
+}
+
+@media (min-width: 900px) {
+  .profile-display-name {
+    font-size: clamp(2.6rem, 2.5vw + 2.2rem, 4.75rem);
+    letter-spacing: 0.08em;
+  }
+}
+
+.profile-fog-inline {
+  width: 100%;
+  max-width: 100%;
+}
+
+.profile-fog-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.28rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+}
+
+.profile-fog-labels strong {
+  font-size: 0.78rem;
+  color: #fa4616;
+  font-weight: 700;
+}
+
+.profile-progress-track {
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profile-progress-track--thin {
+  height: 5px;
+}
+
+.profile-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #c2410c, #fa4616, #fb923c);
+  box-shadow: 0 0 10px rgba(250, 70, 22, 0.4);
+  transition: width 0.6s ease;
+}
+
+.profile-tagline {
+  margin: 0.45rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-align: left;
+}
+
+.profile-badges-column {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 24, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 0.75rem 1rem 0.95rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.profile-badges-heading {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #e2e8f0;
+}
+
+.profile-badges-hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.profile-badge-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  flex: 1;
+  align-content: start;
+}
+
+.profile-badge-slot {
+  border-radius: 10px;
+  min-height: 76px;
+  padding: 0.45rem 0.45rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-badge-slot--placeholder {
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0.65;
+}
+
+.profile-badge-slot__abbr {
+  font-size: 1.28rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.profile-badge-slot__cap {
+  margin-top: 0.3rem;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  line-height: 1.25;
+}
+
+.profile-map-panel,
+.profile-discoveries-panel {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: rgba(20, 24, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.profile-panel-header {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(90deg, rgba(26, 35, 126, 0.5), rgba(250, 70, 22, 0.15));
+}
+
+.profile-map-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.profile-map-wrap .leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 0 0 14px 14px;
+  font-family: inherit;
+}
+
+.profile-discoveries-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem 1rem 1rem;
+  overflow-y: auto;
+}
+
+.profile-discovery-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profile-discovery-row:last-child {
+  border-bottom: none;
+}
+
+.profile-discovery-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+  background: #fa4616;
+  box-shadow: 0 0 8px rgba(250, 70, 22, 0.6);
+}
+
+.profile-discovery-row h3 {
+  margin: 0 0 0.15rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.profile-discovery-row p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.profile-empty {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+.profile-loading {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  padding: 0.75rem 1rem;
+}

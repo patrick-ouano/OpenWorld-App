@@ -15,28 +15,35 @@
 
 .gw-page {
   min-height: calc(100vh - 110px);
-  padding: 1.25rem 1rem 2rem;
+  padding: 0.25rem clamp(0.65rem, 2.5vw, 2rem) 1.75rem;
   background: linear-gradient(165deg, var(--gw-bg-top) 0%, var(--gw-bg-bottom) 55%, #0a0f1a 100%);
   color: var(--gw-text);
 }
 
 .gw-page-inner {
-  max-width: 920px;
+  width: 100%;
+  max-width: min(1480px, 100%);
   margin: 0 auto;
+}
+
+@media (min-width: 1400px) {
+  .gw-page-inner {
+    max-width: min(1600px, 96vw);
+  }
 }
 
 .showcase-card {
   border-radius: 10px;
   overflow: hidden;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.85rem;
   background: var(--gw-panel);
   border: 1px solid var(--gw-panel-border);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
 .showcase-card__header {
-  padding: 0.55rem 1rem;
-  font-size: 0.95rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   background: linear-gradient(90deg, var(--gw-header) 0%, var(--gw-header-glow) 100%);
@@ -45,7 +52,7 @@
 }
 
 .showcase-card__body {
-  padding: 1rem 1rem 1.1rem;
+  padding: 0.85rem 0.95rem 1rem;
 }
 
 .showcase-stat-row {
@@ -87,6 +94,6 @@
 .gw-lead {
   font-size: 0.9rem;
   color: var(--gw-muted);
-  margin: 0 0 1.25rem;
+  margin: 0 0 0.85rem;
   line-height: 1.45;
 }
