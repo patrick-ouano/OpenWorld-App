@@ -1,11 +1,12 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Map, Trophy, CircleStar, User } from 'lucide-react';
 import './AppLayout.css';
 
 const TABS = [
-  { label: 'Map', path: '/app/map' },
-  { label: 'Challenges', path: '/app/challenges' },
-  { label: 'Badges', path: '/app/badges' },
-  { label: 'Profile', path: '/app/profile' },
+  { label: 'Map', path: '/app/map', Icon: Map },
+  { label: 'Challenges', path: '/app/challenges', Icon: Trophy },
+  { label: 'Badges', path: '/app/badges', Icon: CircleStar },
+  { label: 'Profile', path: '/app/profile', Icon: User },
 ];
 
 function AppLayout() {
@@ -26,15 +27,18 @@ function AppLayout() {
         </div>
 
         <div className="nav-tabs">
-          {TABS.map((tab) => (
+          {TABS.map(({ label, path, Icon }) => (
             <NavLink
-              key={tab.label}
-              to={tab.path}
+              key={path}
+              to={path}
               className={({ isActive }) =>
                 'nav-tab' + (isActive ? ' nav-tab-active' : '')
               }
             >
-              {tab.label}
+              <span className="nav-tab-inner">
+                <Icon className="nav-tab-icon" size={26} strokeWidth={2} aria-hidden />
+                <span className="nav-tab-label">{label}</span>
+              </span>
             </NavLink>
           ))}
         </div>

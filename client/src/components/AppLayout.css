@@ -42,17 +42,34 @@
 
 .nav-tab {
   flex: 1;
-  padding: 0.6rem 0;
+  padding: 0.45rem 0 0.55rem;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.9rem;
-  font-weight: 500;
   cursor: pointer;
   text-align: center;
   text-decoration: none;
   transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-tab-inner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.nav-tab-icon {
+  flex-shrink: 0;
+}
+
+.nav-tab-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
 }
 
 .nav-tab:hover {
@@ -65,7 +82,7 @@
 }
 
 .page-content {
-  padding-top: 110px;
+  padding-top: 138px;
   flex: 1;
   min-height: 0;
   position: relative;
