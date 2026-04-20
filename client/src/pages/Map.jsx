@@ -56,8 +56,7 @@ function LocationMarker({ onPosition }) {
       }
       lastPosRef.current = { latitude, longitude, ts: Date.now() };
 
-      const next = [latitude, longitude];
-      setPosition(next);
+      setPosition([latitude, longitude]);
       onPosition?.({ latitude, longitude });
     };
     const onErr = () => setPosition(null);
@@ -153,6 +152,7 @@ function LandmarkPopup({
   const map = useMap();
   const [view, setView] = useState('info');
   const [submitting, setSubmitting] = useState(false);
+  const [triviaError, setTriviaError] = useState('');
 
   const hasTrivia = !!triviaDoc;
 
@@ -161,7 +161,6 @@ function LandmarkPopup({
   const [newCorrectIndex, setNewCorrectIndex] = useState(0);
 
   const coordKey = `${lm.coordinates.latitude},${lm.coordinates.longitude}`;
-
 
   useEffect(() => {
     const shouldAutoOpenTrivia = !isAdmin && isNear && hasTrivia && !isCompleted;
@@ -206,8 +205,6 @@ function LandmarkPopup({
     setNewOptions(['', '', '']);
     setNewCorrectIndex(0);
   };
-
-  const [triviaError, setTriviaError] = useState('');
 
   const handleSaveTrivia = async () => {
     if (submitting) return;
@@ -452,6 +449,7 @@ function MapPage() {
     });
     if (res.ok) {
       fetchLandmarks();
+      fetchTrivia();
     }
   };
 
