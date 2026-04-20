@@ -1,3 +1,4 @@
+// Express router https://expressjs.com/en/guide/routing.html
 import express from 'express';
 import Trivia from '../models/Trivia.js';
 import User from '../models/User.js';
@@ -5,6 +6,7 @@ import User from '../models/User.js';
 const router = express.Router();
 
 // GET — all trivia entries
+// Mongoose find https://mongoosejs.com/docs/api/model.html#Model.find()
 router.get('/', async (req, res) => {
   try {
     const trivia = await Trivia.find();
@@ -14,7 +16,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST — create a new trivia entry for a landmark (admin copies coordinates from the pin)
+// POST — create a new trivia entry (admin supplies coordinates copied from the pin)
+// Mongoose create https://mongoosejs.com/docs/api/model.html#Model.create()
 router.post('/', async (req, res) => {
   try {
     const trivia = await Trivia.create(req.body);
@@ -25,18 +28,18 @@ router.post('/', async (req, res) => {
 });
 
 // PUT — edit an existing trivia entry (coordinates are not editable)
+// Mongoose findByIdAndUpdate https://mongoosejs.com/docs/api/model.html#Model.findByIdAndUpdate()
+// runValidators + context: 'query' required for update validators on arrays
+// https://mongoosejs.com/docs/validation.html#update-validators
 router.put('/:id', async (req, res) => {
   try {
     const { question, options, correctIndex } = req.body;
-    // debugging :(
-    console.log('[PUT /api/trivia/:id] id =', req.params.id);
-    const trivia = await Trivia.findById(req.params.id);
-    console.log('[PUT /api/trivia/:id] found =', trivia ? trivia._id : null);
+    const trivia = await Trivia.findByIdAndUpdate(
+      req.params.id,
+      { question, options, correctIndex },
+      { new: true, runValidators: true, context: 'query' }
+    );
     if (!trivia) return res.status(404).json({ error: 'Trivia not found' });
-    trivia.question = question;
-    trivia.options = options;
-    trivia.correctIndex = correctIndex;
-    await trivia.save();
     res.json(trivia);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -44,6 +47,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE — remove a trivia entry
+// Mongoose findByIdAndDelete https://mongoosejs.com/docs/api/model.html#Model.findByIdAndDelete()
 router.delete('/:id', async (req, res) => {
   try {
     await Trivia.findByIdAndDelete(req.params.id);
@@ -53,8 +57,9 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST — answer a trivia question
+// POST — submit an answer to a trivia question
 // body: { userId, answerIndex }
+// MongoDB $addToSet https://www.mongodb.com/docs/manual/reference/operator/update/addToSet/
 router.post('/:id/answer', async (req, res) => {
   try {
     const { userId, answerIndex } = req.body;
@@ -65,7 +70,7 @@ router.post('/:id/answer', async (req, res) => {
 
     let completedTrivia;
     if (correct && userId) {
-      // $addToSet keeps the list unique - https://www.mongodb.com/docs/manual/reference/operator/update/addToSet/
+      // $addToSet keeps the array unique without a manual dedup step
       const updated = await User.findByIdAndUpdate(
         userId,
         { $addToSet: { completedTrivia: trivia._id.toString() } },
