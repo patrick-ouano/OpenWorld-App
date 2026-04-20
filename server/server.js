@@ -25,4 +25,5 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/landmarks', landmarkRoutes);
 
-app.listen(process.env.PORT || 5000, () => console.log('Server on port 5000'));
+const port = Number(process.env.PORT) || 5000;
+app.listen(port, () => console.log(`Server on port ${port}`));
