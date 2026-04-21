@@ -4,63 +4,103 @@ import { useEffect, useMemo, useState } from 'react';
 
 >>>>>>> main
 import { BADGES, PLANNED_CHALLENGE_COUNT } from '../data/badges';
-import { getCompletedChallengeIds } from '../lib/challengeProgress';
+import { CHALLENGES } from '../data/challenges';
+import { apiUrl } from '../apiBase';
 import './Badges.css';
 
-const CHALLENGES = [
-  {
-    "name": "Freshman Orientation",
-    "description": "Visit your very first pin anywhere on the map and correctly answer its trivia question to begin your journey."
-  },
-  {
-    "name": "The Campus Tour Guide",
-    "description": "Visit and conquer the fundamental staples of the UF campus. You must complete the pins at Century Tower, Ben Hill Griffin Stadium, the J. Wayne Reitz Union, and Plaza of the Americas."
-  },
-  {
-    "name": "Landmark Legend",
-    "description": "Visit and correctly answer the trivia at all locations in the Landmarks category: Century Tower, The \"French Fries\" (Alachua) Sculpture, University Auditorium, The Bat Houses, and the Albert and Alberta Statues."
-  },
-  {
-    "name": "Dining Connoisseur",
-    "description": "Visit and correctly answer the trivia at all locations in the Dining category: Gator Corner Dining Center, Broward Dining, The Hub, and the Reitz Union Food Court."
-  },
-  {
-    "name": "The Resident",
-    "description": "Visit and correctly answer the trivia at all locations in the Housing category: Broward Hall, Hume Hall, Beaty Towers, and the historic Murphree Hall."
-  },
-  {
-    "name": "The Bookworm",
-    "description": "Visit and correctly answer the trivia at all locations in the Libraries category: Library West, Marston Science Library, Smathers Library (East), and the Architecture & Fine Arts (AFA) Library."
-  },
-  {
-    "name": "The Historic Gator",
-    "description": "Complete the trivia at UF's oldest and most historically significant buildings by visiting Murphree Hall, Smathers Library (East), and University Auditorium."
-  },
-  {
-    "name": "The STEM Scholar",
-    "description": "Complete the trivia at the science and engineering-focused locations by visiting Marston Science Library, Hume Hall, and The Bat Houses."
-  },
-  {
-    "name": "The Arts & Culture Critic",
-    "description": "Complete the trivia at UF's creative hubs by visiting the Architecture & Fine Arts Library, the University Auditorium, and the \"French Fries\" (Alachua) Sculpture."
-  },
-  {
-    "name": "The East Campus Explorer",
-    "description": "Complete the trivia for the pins clustered on the eastern side of campus by visiting Beaty Towers, Broward Hall, and Broward Dining."
-  },
-  {
-    "name": "The Heart of Campus",
-    "description": "Complete the trivia for the high-traffic central campus pins by visiting Library West, The Hub, and Century Tower."
-  },
-  {
-    "name": "The True Florida Gator",
-    "description": "Achieve 100% completion. Visit every single pin across all four categories (Landmarks, Dining, Housing, and Libraries) and answer all the trivia questions correctly."
-  }
-];
+// Helpers:
 
-function buildStats(completedIds) {
+// Reads the logged-in user's completedTrivia array from local/session storage.
+// This is the same storage key the auth flow and Map.jsx write to.
+function getCompletedTriviaIds() {
+  try {
+    const raw =
+      localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
+    const user = JSON.parse(raw || 'null');
+    return user?.completedTrivia ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Evaluates every challenge's progress against the user's completed trivia.
+//
+// landmarks & trivia come from the API; completedTriviaIds from auth storage.
+// Returns a Map<challengeId, { completed: number, total: number }>.
+//
+// How it works:
+//   1. Build a lookup from landmark name → its matching trivia _id
+//      (trivia is linked to landmarks by matching coordinates).
+//   2. For each challenge, figure out which trivia IDs are required,
+//      then count how many the user has already completed.
+function evaluateChallenges(challenges, landmarks, trivia, completedTriviaIds) {
+  const completedSet = new Set(completedTriviaIds);
+
+  // Map each trivia's coordinates to its _id for fast lookup
+  const coordToTriviaId = new Map();
+  for (const t of trivia) {
+    coordToTriviaId.set(
+      `${t.coordinates.latitude},${t.coordinates.longitude}`,
+      t._id,
+    );
+  }
+
+  // Map landmark name → trivia _id (if that landmark has trivia)
+  const nameToTriviaId = new Map();
+  for (const lm of landmarks) {
+    const key = `${lm.coordinates.latitude},${lm.coordinates.longitude}`;
+    const tId = coordToTriviaId.get(key);
+    if (tId) nameToTriviaId.set(lm.name, tId);
+  }
+
+  // Total number of trivia-enabled landmarks (used by 'all' type challenges)
+  const totalTriviaCount = nameToTriviaId.size;
+
+  const results = new Map();
+
+  for (const ch of challenges) {
+    let completed = 0;
+    let total = 0;
+
+    if (ch.type === 'threshold') {
+      // 'threshold' — user just needs N completions of anything
+      total = ch.requiredCount;
+      completed = Math.min(completedSet.size, total);
+    } else if (ch.type === 'all') {
+      // 'all' — every trivia-enabled landmark must be completed
+      total = totalTriviaCount;
+      for (const tId of nameToTriviaId.values()) {
+        if (completedSet.has(tId)) completed++;
+      }
+    } else {
+      // 'specific' — only the named landmarks count
+      total = ch.requiredLandmarks.length;
+      for (const name of ch.requiredLandmarks) {
+        const tId = nameToTriviaId.get(name);
+        if (tId && completedSet.has(tId)) completed++;
+      }
+    }
+
+    results.set(ch.id, { completed, total });
+  }
+
+  return results;
+}
+
+// Counts how many challenges the user has fully completed.
+// Used by the badge system to decide which badges to unlock.
+function countFullyCompleted(progressMap) {
+  let count = 0;
+  for (const { completed, total } of progressMap.values()) {
+    if (total > 0 && completed >= total) count++;
+  }
+  return count;
+}
+
+// Stats for the badge grid:
+
+function buildStats(completedCount) {
   const totalChallenges = PLANNED_CHALLENGE_COUNT;
-  const completedCount = completedIds.length;
   const completionPct =
     totalChallenges === 0 ? 0 : Math.round((completedCount / totalChallenges) * 100);
 
@@ -90,20 +130,46 @@ function buildStats(completedIds) {
   };
 }
 
-function Badges() {
-  const [completedIds, setCompletedIds] = useState(() => getCompletedChallengeIds());
+// Component:
 
+function Badges() {
+  const [landmarks, setLandmarks] = useState([]);
+  const [trivia, setTrivia] = useState([]);
+  const [completedTriviaIds, setCompletedTriviaIds] = useState(getCompletedTriviaIds);
+
+  // Fetch landmarks and trivia from API on mount
+  // fetch docs: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
   useEffect(() => {
-    const on = () => setCompletedIds(getCompletedChallengeIds());
-    window.addEventListener('openworld-progress', on);
-    window.addEventListener('storage', on);
-    return () => {
-      window.removeEventListener('openworld-progress', on);
-      window.removeEventListener('storage', on);
-    };
+    fetch(apiUrl('/api/landmarks'))
+      .then((r) => r.json())
+      .then(setLandmarks)
+      .catch(() => {});
+    fetch(apiUrl('/api/trivia'))
+      .then((r) => r.json())
+      .then(setTrivia)
+      .catch(() => {});
   }, []);
 
-  const stats = useMemo(() => buildStats(completedIds), [completedIds]);
+  // Re-read completed trivia when storage changes (e.g. user answers on Map page)
+  useEffect(() => {
+    const refresh = () => setCompletedTriviaIds(getCompletedTriviaIds());
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
+  }, []);
+
+  // Evaluate progress for every challenge
+  const progressMap = useMemo(
+    () => evaluateChallenges(CHALLENGES, landmarks, trivia, completedTriviaIds),
+    [landmarks, trivia, completedTriviaIds],
+  );
+
+  // Count how many challenges are fully done → drives badge unlocks
+  const fullyCompleted = useMemo(
+    () => countFullyCompleted(progressMap),
+    [progressMap],
+  );
+
+  const stats = useMemo(() => buildStats(fullyCompleted), [fullyCompleted]);
 
   const gridSlots = useMemo(() => {
     const maxShow = 11;
@@ -180,17 +246,30 @@ function Badges() {
           </h2>
           <div className="showcase-card__body">
             <div className="challenges-list" role="list">
-              {CHALLENGES.map((c, i) => (
-                <div key={i} className="challenge-item" role="listitem">
-                  <div className="challenge-item__name">{c.name}</div>
-                  <div className="challenge-item__desc">{c.description}</div>
-                </div>
-              ))}
+              {CHALLENGES.map((c) => {
+                const prog = progressMap.get(c.id) || { completed: 0, total: 0 };
+                const done = prog.total > 0 && prog.completed >= prog.total;
+                return (
+                  <div
+                    key={c.id}
+                    className={`challenge-item${done ? ' challenge-item--done' : ''}`}
+                    role="listitem"
+                  >
+                    <div className="challenge-item__header">
+                      <div className="challenge-item__name">{c.name}</div>
+                      <div className="challenge-item__progress">
+                        {prog.completed}/{prog.total}
+                      </div>
+                    </div>
+                    <div className="challenge-item__desc">{c.description}</div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="showcase-stat-row showcase-stat-row--duo">
               <div className="showcase-stat">
-                <div className="showcase-stat__value">{stats.completedCount}</div>
+                <div className="showcase-stat__value">{fullyCompleted}</div>
                 <div className="showcase-stat__label">Challenges completed</div>
               </div>
               <div className="showcase-stat">
