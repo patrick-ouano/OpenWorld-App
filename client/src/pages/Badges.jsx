@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { BADGES, PLANNED_CHALLENGE_COUNT } from '../data/badges';
 import { CHALLENGES } from '../data/challenges';
 import {
   buildStats,

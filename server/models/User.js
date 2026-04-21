@@ -22,6 +22,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'Explorer',
   },
+  // stores explored map cells per user
+  exploredCells: {
+    type: [String],
+    default: [],
+  },
   completedTrivia: {
     type: [String],
     default: [],

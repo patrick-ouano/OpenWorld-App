@@ -8,6 +8,36 @@ import { apiUrl } from '../apiBase';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
 import FogOfWar, { REVEAL_RADIUS } from './FogOfWar';
+import { cellKeyToLatLng, CELL_SIZE_METERS, toCellKey } from '../lib/explorationProgress';
+
+// Helper to check if a pin sits inside any of the visually drawn holes
+function isPinVisuallyRevealed(pinLat, pinLng, exploredCellSet) {
+  // fast path: the pin's strictly enclosed cell is explored
+  const exactKey = toCellKey(pinLat, pinLng, CELL_SIZE_METERS);
+  if (exploredCellSet.has(exactKey)) return true;
+
+  // fallback: check 3x3 neighbor grids to see if the pin sits physically inside 
+  // the transparent hole of a neighboring cell.
+  const latStep = CELL_SIZE_METERS / 111320;
+  const lngStep = CELL_SIZE_METERS / (111320 * Math.cos((pinLat * Math.PI) / 180));
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const neighborKey = toCellKey(pinLat + dy * latStep, pinLng + dx * lngStep, CELL_SIZE_METERS);
+      if (exploredCellSet.has(neighborKey)) {
+        const center = cellKeyToLatLng(neighborKey, CELL_SIZE_METERS);
+        if (center) {
+          const dyMeters = (pinLat - center[0]) * 111320;
+          const dxMeters = (pinLng - center[1]) * 111320 * Math.cos((center[0] * Math.PI) / 180);
+          const distance = Math.sqrt(dxMeters * dxMeters + dyMeters * dyMeters);
+          // 0.9 multiplier is exactly what FogOfWar uses to scale its hole
+          if (distance <= CELL_SIZE_METERS * 0.9) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
 const UF_CENTER = [29.6436, -82.3549];
 
@@ -394,6 +424,7 @@ function MapPage() {
   const [completedTriviaIds, setCompletedTriviaIds] = useState(
     () => new Set((currentUser?.completedTrivia ?? []).map((id) => String(id))),
   );
+  const [exploredCells, setExploredCells] = useState([]);
 
   // useRef https://react.dev/reference/react/useRef
   const popupOpenSetters = useRef(new Map());
@@ -511,11 +542,10 @@ function MapPage() {
         {/* OSM tile layer — tile URL from https://wiki.openstreetmap.org/wiki/Tile_servers
             attribution required by https://www.openstreetmap.org/copyright */}
         <TileLayer
-          className="fog-gray"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <FogOfWar revealAt={userPos} />
+        <FogOfWar exploredCells={exploredCells} setExploredCells={setExploredCells} />
         <LocationMarker onPosition={setUserPos} />
         {/* Circle draws the fog reveal radius in admin view
             Leaflet Circle https://leafletjs.com/reference.html#circle */}
@@ -538,47 +568,67 @@ function MapPage() {
         <PopupOpenDispatcher popupOpenSetters={popupOpenSetters} />
 
         {/* permanent landmarks from db */}
-        {landmarks.map((lm) => {
-          const triviaDoc = findTriviaForPin(lm);
-          const isCompleted =
-            !!triviaDoc && completedTriviaIds.has(String(triviaDoc._id));
+        {useMemo(() => {
+          const exploredSet = new Set(exploredCells);
+          return landmarks.map((lm) => {
+            const triviaDoc = findTriviaForPin(lm);
+            
+            // Fix merged from main: Using String() to prevent ID type mismatches
+            const isCompleted = !!triviaDoc && completedTriviaIds.has(String(triviaDoc._id));
+            
+            const isExplored = isPinVisuallyRevealed(lm.coordinates.latitude, lm.coordinates.longitude, exploredSet);
 
-          // "near" = inside fog reveal circle (same radius as FogOfWar REVEAL_RADIUS)
-          const isNear =
-            !!triviaDoc &&
-            !isCompleted &&
-            !!userPos &&
-            L.latLng(userPos.latitude, userPos.longitude).distanceTo(
-              L.latLng(lm.coordinates.latitude, lm.coordinates.longitude)
-            ) <= REVEAL_RADIUS;
+            // "near" = inside fog reveal circle (same radius as FogOfWar REVEAL_RADIUS)
+            const isNear =
+              !!triviaDoc &&
+              !isCompleted &&
+              !!userPos &&
+              L.latLng(userPos.latitude, userPos.longitude).distanceTo(
+                L.latLng(lm.coordinates.latitude, lm.coordinates.longitude)
+              ) <= REVEAL_RADIUS;
 
-          const icon = isAdmin
-            ? (triviaDoc ? completedIcon : defaultIcon)
-            : (isCompleted ? completedIcon : isNear ? nearIcon : defaultIcon);
+            const icon = isAdmin
+              ? (triviaDoc ? completedIcon : defaultIcon)
+              : (isCompleted ? completedIcon : isNear ? nearIcon : defaultIcon);
 
-          return (
-            <Marker
-              key={lm._id}
-              position={[lm.coordinates.latitude, lm.coordinates.longitude]}
-              icon={icon}
-            >
-              <Popup>
-                <LandmarkPopup
-                  lm={lm}
-                  isAdmin={isAdmin}
-                  isNear={isNear}
-                  isCompleted={isCompleted}
-                  triviaDoc={triviaDoc}
-                  currentUser={currentUser}
-                  onCorrect={handleCorrectAnswer}
-                  onDelete={deleteLandmark}
-                  onTriviaSaved={fetchTrivia}
-                  popupOpenSetters={popupOpenSetters}
-                />
-              </Popup>
-            </Marker>
-          );
-        })}
+            return (
+              <Marker
+                key={lm._id}
+                position={[lm.coordinates.latitude, lm.coordinates.longitude]}
+                icon={icon}
+                opacity={isExplored || isAdmin ? 1 : 0.45}
+              >
+                <Popup>
+                  <div ref={(el) => {
+                    if (el) {
+                      const popupWrapper = el.closest('.leaflet-popup');
+                      if (popupWrapper) {
+                        if (isExplored || isAdmin) {
+                          popupWrapper.classList.remove('dimmed-popup');
+                        } else {
+                          popupWrapper.classList.add('dimmed-popup');
+                        }
+                      }
+                    }
+                  }}>
+                    <LandmarkPopup
+                      lm={lm}
+                      isAdmin={isAdmin}
+                      isNear={isNear}
+                      isCompleted={isCompleted}
+                      triviaDoc={triviaDoc}
+                      currentUser={currentUser}
+                      onCorrect={handleCorrectAnswer}
+                      onDelete={deleteLandmark}
+                      onTriviaSaved={fetchTrivia}
+                      popupOpenSetters={popupOpenSetters}
+                    />
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          });
+        }, [landmarks, exploredCells, isAdmin, completedTriviaIds, findTriviaForPin, handleCorrectAnswer, userPos, currentUser])}
 
         {/* draft pin for creating new landmark */}
         {draftPin && (

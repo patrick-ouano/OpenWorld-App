@@ -290,6 +290,10 @@
   width: 100%;
 }
 
-.fog-gray {
-  filter: brightness(0.1);
+
+
+.dimmed-popup .leaflet-popup-content-wrapper,
+.dimmed-popup .leaflet-popup-tip {
+  opacity: 0.45;
+  transition: opacity 0.3s ease;
 }

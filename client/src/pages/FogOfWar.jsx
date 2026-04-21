@@ -1,74 +1,200 @@
-import { useEffect, useState, useLayoutEffect } from 'react';
-import { useMap, TileLayer } from 'react-leaflet';
+// reference: I got a lot of help from Gemini when coming up
+// for the integration and implementation of the fog of war,
+// trying to understand how it works and making changes to
+// personalize it.
+// I also referenced other sources, which are mentioned in the code.
 
-// How many meters around the user to show in full color (shared with Map.jsx pin proximity)
-export const REVEAL_RADIUS = 200;
+import { useEffect, useRef, useState } from 'react';
+import { useMap } from 'react-leaflet';
+import {
+  CELL_SIZE_METERS,
+  REVEAL_RADIUS_METERS,
+  cellKeyToLatLng,
+  fetchExploredCells,
+  getStoredAuthToken,
+  getCellsInRadius,
+  saveExploredCells,
+} from '../lib/explorationProgress';
 
-/** @param {{ revealAt: { latitude: number; longitude: number } | null }} props — same source as LocationMarker / admin Circle */
-function FogOfWar({ revealAt }) {
+export const REVEAL_RADIUS = REVEAL_RADIUS_METERS;
+const SAVE_INTERVAL_MS = 15000;
+const MAX_RENDERED_CELLS = 500;
+const FOG_OPACITY = 0.78;
+
+function FogOfWar({ exploredCells, setExploredCells }) {
   const map = useMap();
-  const [paneReady, setPaneReady] = useState(false);
+  const [position, setPosition] = useState(null);
+  const pendingCellsRef = useRef(new Set());
+  const exploredCellSetRef = useRef(new Set());
+  const positionRef = useRef(null);
+  const cellsRef = useRef([]);
+  const drawRef = useRef(null);
 
-  // Create the "reveal" pane BEFORE first paint (useLayoutEffect)
-  // so the TileLayer can safely render into it
-  useLayoutEffect(() => {
-    let pane = map.getPane('fogRevealPane');
-    if (!pane) {
-      pane = map.createPane('fogRevealPane');
-      pane.style.zIndex = '250';
-      // Start fully hidden until we know where the user is
-      pane.style.clipPath = 'circle(0px at 0px 0px)';
-    }
-    pane.style.display = '';
-    setPaneReady(true);
-  }, [map]);
-
-  // Hide the reveal pane when fog preview unmounts so no empty high-z pane sits above the map
   useEffect(() => {
+    exploredCellSetRef.current = new Set(exploredCells);
+    cellsRef.current = exploredCells;
+  }, [exploredCells]);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  // loads saved explored cells when fog first mounts
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCells() {
+      const savedCells = await fetchExploredCells();
+      if (!isMounted || !savedCells.length) return;
+      setExploredCells(savedCells);
+    }
+
+    loadCells();
     return () => {
-      const pane = map.getPane('fogRevealPane');
-      if (pane) {
-        pane.style.display = 'none';
-        pane.style.clipPath = 'none';
+      isMounted = false;
+    };
+  }, []);
+
+  // saves queued cells every few seconds instead of every gps update
+  useEffect(() => {
+    const timerId = setInterval(async () => {
+      if (pendingCellsRef.current.size === 0) return;
+
+      const cellsToSave = Array.from(pendingCellsRef.current);
+      pendingCellsRef.current.clear();
+
+      const saved = await saveExploredCells(cellsToSave);
+      if (saved.length > 0) {
+        setExploredCells(saved);
+        return;
       }
+
+      // puts cells back in queue when request fails
+      cellsToSave.forEach((cell) => pendingCellsRef.current.add(cell));
+    }, SAVE_INTERVAL_MS);
+
+    return () => clearInterval(timerId);
+  }, []);
+
+  // watches user gps location
+  // reference: https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    const onPosition = (geo) => {
+      const lat = geo.coords.latitude;
+      const lng = geo.coords.longitude;
+      setPosition([lat, lng]);
+
+      const cellsInRadius = getCellsInRadius(lat, lng, REVEAL_RADIUS_METERS, CELL_SIZE_METERS);
+      if (!cellsInRadius.length) return;
+
+      const newCells = cellsInRadius.filter((cell) => !exploredCellSetRef.current.has(cell));
+      if (!newCells.length) return;
+
+      newCells.forEach((cell) => {
+        exploredCellSetRef.current.add(cell);
+        if (getStoredAuthToken()) {
+          pendingCellsRef.current.add(cell);
+        }
+      });
+
+      setExploredCells((prev) => [...prev, ...newCells]);
+    };
+    const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+
+    navigator.geolocation.getCurrentPosition(onPosition, () => {}, opts);
+    const watchId = navigator.geolocation.watchPosition(onPosition, () => {}, opts);
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  // draws fog overlay and punches circular reveal holes
+  // reference: https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing
+  useEffect(() => {
+    // 1. Put the canvas in the overlayPane
+    // We attach it here so it automatically stays underneath the pins (z-index 600) and popups (z-index 700).
+    // This way, the dark fog doesn't accidentally cover up our markers!
+    const pane = map.getPanes().overlayPane;
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.pointerEvents = 'none';
+    pane.appendChild(canvas);
+
+    // converts meters to screen pixels at a given latitude
+    function metersToPixelsAt(lat, meters) {
+      const center = map.latLngToContainerPoint([lat, 0]);
+      const edge = map.latLngToContainerPoint([lat + (meters / 111320), 0]);
+      return Math.abs(center.y - edge.y);
+    }
+
+    function draw() {
+      const size = map.getSize();
+      if (canvas.width !== size.x) canvas.width = size.x;
+      if (canvas.height !== size.y) canvas.height = size.y;
+
+      // 2. Keep the canvas locked to the screen
+      // Since the overlayPane moves around when the user drags the map, 
+      // we have to push our canvas in the exact opposite direction so it stays glued to our viewport.
+      const paneOffset = map.containerPointToLayerPoint([0, 0]);
+      canvas.style.transform = `translate3d(${paneOffset.x}px, ${paneOffset.y}px, 0)`;
+
+      const ctx = canvas.getContext('2d');
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, size.x, size.y);
+      ctx.fillStyle = `rgba(0, 0, 0, ${FOG_OPACITY})`;
+      ctx.fillRect(0, 0, size.x, size.y);
+
+      // 3. Punch out the fog
+      // 'destination-out' is basically an eraser mode for the canvas. 
+      // Any shape we draw now will literally erase the black fog we just drew, acting like a hole puncher.
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = '#000'; // solid black ensures it completely erases the fog 100%
+
+      // 4. Draw all the holes at once
+      // We group all the circles into one massive path and run ctx.fill() just once at the very end.
+      // This stops the circles from drawing over each other's edges, which prevents gross overlapping lines!
+      ctx.beginPath(); // start a single grouped drawing path
+
+      const cells = cellsRef.current.slice(-MAX_RENDERED_CELLS);
+      cells.forEach((cell) => {
+        const latLng = cellKeyToLatLng(cell, CELL_SIZE_METERS);
+        if (!latLng) return;
+        const p = map.latLngToContainerPoint(latLng);
+        const r = metersToPixelsAt(latLng[0], CELL_SIZE_METERS * 0.9);
+        ctx.moveTo(p.x + r, p.y); // prevent stray lines by jumping manually
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      });
+
+      if (positionRef.current) {
+        const pos = positionRef.current;
+        const p = map.latLngToContainerPoint(pos);
+        const r = metersToPixelsAt(pos[0], REVEAL_RADIUS_METERS);
+        ctx.moveTo(p.x + r, p.y);
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      }
+
+      ctx.fill(); // punch all circles in a single compositing step
+    }
+
+    drawRef.current = draw;
+    draw();
+
+    map.on('move zoom viewreset resize', draw);
+    return () => {
+      map.off('move zoom viewreset resize', draw);
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      drawRef.current = null;
     };
   }, [map]);
 
-  // Clip uses the same position as LocationMarker / pin logic — do not use a second geolocation
-  // subscription or the reveal circle stays at 0px (whole map dark) while userPos is already set.
+  // redraws canvas whenever reveal data changes
   useEffect(() => {
-    if (!revealAt) return;
-    const pane = map.getPane('fogRevealPane');
-    if (!pane) return;
+    if (drawRef.current) drawRef.current();
+  }, [position, exploredCells]);
 
-    const position = [revealAt.latitude, revealAt.longitude];
-
-    function updateClip() {
-      const center = map.latLngToLayerPoint(position);
-
-      // Convert REVEAL_RADIUS (meters) to pixels at the current zoom
-      // 1 degree of latitude ≈ 111,320 meters
-      const degOffset = REVEAL_RADIUS / 111320;
-      const edge = map.latLngToLayerPoint([position[0] + degOffset, position[1]]);
-      const radiusPx = Math.abs(center.y - edge.y);
-
-      pane.style.clipPath = `circle(${radiusPx}px at ${center.x}px ${center.y}px)`;
-    }
-
-    updateClip();
-    map.on('move zoom viewreset', updateClip);
-    return () => map.off('move zoom viewreset', updateClip);
-  }, [map, revealAt?.latitude, revealAt?.longitude]);
-
-  // Only render the color TileLayer after the pane exists
-  if (!paneReady) return null;
-
-  return (
-    <TileLayer
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      pane="fogRevealPane"
-    />
-  );
+  return null;
 }
 
 export default FogOfWar;
