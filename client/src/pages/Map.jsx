@@ -392,7 +392,7 @@ function MapPage() {
   const [trivia, setTrivia] = useState([]);
   const [userPos, setUserPos] = useState(null);
   const [completedTriviaIds, setCompletedTriviaIds] = useState(
-    () => new Set(currentUser?.completedTrivia ?? [])
+    () => new Set((currentUser?.completedTrivia ?? []).map((id) => String(id))),
   );
 
   // useRef https://react.dev/reference/react/useRef
@@ -451,26 +451,29 @@ function MapPage() {
   };
 
   const handleCorrectAnswer = (triviaId, completedFromServer) => {
+    const tid = String(triviaId);
     setCompletedTriviaIds((prev) => {
-      const next = new Set(prev);
-      next.add(triviaId);
+      const next = new Set([...prev].map((id) => String(id)));
+      next.add(tid);
       return next;
     });
 
     // persist on the stored user so completedTrivia survives a page refresh
-    const listFromServer = Array.isArray(completedFromServer) ? completedFromServer : null;
+    const listFromServer = Array.isArray(completedFromServer)
+      ? completedFromServer.map((id) => String(id))
+      : null;
     const storageKey = 'authUser';
     const stored =
       localStorage.getItem(storageKey) || sessionStorage.getItem(storageKey);
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored);
-      // $addToSet equivalent on the client array
-      // MongoDB $addToSet https://www.mongodb.com/docs/manual/reference/operator/update/addToSet/
-      parsed.completedTrivia = listFromServer
-        ?? Array.from(new Set([...(parsed.completedTrivia || []), triviaId]));
+      const existing = (parsed.completedTrivia || []).map((id) => String(id));
+      parsed.completedTrivia =
+        listFromServer ?? Array.from(new Set([...existing, tid]));
       const target = localStorage.getItem(storageKey) ? localStorage : sessionStorage;
       target.setItem(storageKey, JSON.stringify(parsed));
+      window.dispatchEvent(new Event('openworld-auth-user'));
     } catch {
       // ignore bad JSON
     }
@@ -537,7 +540,8 @@ function MapPage() {
         {/* permanent landmarks from db */}
         {landmarks.map((lm) => {
           const triviaDoc = findTriviaForPin(lm);
-          const isCompleted = !!triviaDoc && completedTriviaIds.has(triviaDoc._id);
+          const isCompleted =
+            !!triviaDoc && completedTriviaIds.has(String(triviaDoc._id));
 
           // "near" = inside fog reveal circle (same radius as FogOfWar REVEAL_RADIUS)
           const isNear =
