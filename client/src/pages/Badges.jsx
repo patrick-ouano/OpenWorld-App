@@ -1,138 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-
 import { BADGES, PLANNED_CHALLENGE_COUNT } from '../data/badges';
 import { CHALLENGES } from '../data/challenges';
+import {
+  buildStats,
+  countFullyCompleted,
+  evaluateChallenges,
+  getCompletedTriviaIds,
+} from '../lib/badgeProgress';
 import { apiUrl } from '../apiBase';
 import './Badges.css';
-
-// Helpers:
-
-// Reads the logged-in user's completedTrivia array from local/session storage.
-// This is the same storage key the auth flow and Map.jsx write to.
-function getCompletedTriviaIds() {
-  try {
-    const raw =
-      localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
-    const user = JSON.parse(raw || 'null');
-    return user?.completedTrivia ?? [];
-  } catch {
-    return [];
-  }
-}
-
-// Evaluates every challenge's progress against the user's completed trivia.
-//
-// landmarks & trivia come from the API; completedTriviaIds from auth storage.
-// Returns a Map<challengeId, { completed: number, total: number }>.
-//
-// How it works:
-//   1. Build a lookup from landmark name → its matching trivia _id
-//      (trivia is linked to landmarks by matching coordinates).
-//   2. For each challenge, figure out which trivia IDs are required,
-//      then count how many the user has already completed.
-function evaluateChallenges(challenges, landmarks, trivia, completedTriviaIds) {
-  const completedSet = new Set(completedTriviaIds);
-
-  // Map each trivia's coordinates to its _id for fast lookup
-  const coordToTriviaId = new Map();
-  for (const t of trivia) {
-    coordToTriviaId.set(
-      `${t.coordinates.latitude},${t.coordinates.longitude}`,
-      t._id,
-    );
-  }
-
-  // Map landmark name → trivia _id (if that landmark has trivia)
-  const nameToTriviaId = new Map();
-  for (const lm of landmarks) {
-    const key = `${lm.coordinates.latitude},${lm.coordinates.longitude}`;
-    const tId = coordToTriviaId.get(key);
-    if (tId) nameToTriviaId.set(lm.name, tId);
-  }
-
-  // Total number of trivia-enabled landmarks (used by 'all' type challenges)
-  const totalTriviaCount = nameToTriviaId.size;
-
-  const results = new Map();
-
-  for (const ch of challenges) {
-    let completed = 0;
-    let total = 0;
-
-    if (ch.type === 'threshold') {
-      // 'threshold' — user just needs N completions of anything
-      total = ch.requiredCount;
-      completed = Math.min(completedSet.size, total);
-    } else if (ch.type === 'all') {
-      // 'all' — every trivia-enabled landmark must be completed
-      total = totalTriviaCount;
-      for (const tId of nameToTriviaId.values()) {
-        if (completedSet.has(tId)) completed++;
-      }
-    } else {
-      // 'specific' — only the named landmarks count
-      total = ch.requiredLandmarks.length;
-      for (const name of ch.requiredLandmarks) {
-        const tId = nameToTriviaId.get(name);
-        if (tId && completedSet.has(tId)) completed++;
-      }
-    }
-
-    results.set(ch.id, { completed, total });
-  }
-
-  return results;
-}
-
-// Counts how many challenges the user has fully completed.
-// Used by the badge system to decide which badges to unlock.
-function countFullyCompleted(progressMap) {
-  let count = 0;
-  for (const { completed, total } of progressMap.values()) {
-    if (total > 0 && completed >= total) count++;
-  }
-  return count;
-}
-
-// Stats for the badge grid:
-
-function buildStats(completedCount) {
-  const totalChallenges = PLANNED_CHALLENGE_COUNT;
-  const completionPct =
-    totalChallenges === 0 ? 0 : Math.round((completedCount / totalChallenges) * 100);
-
-  const unlockedBadges = BADGES.filter((b) => completedCount >= b.minCompleted);
-  const lockedBadges = BADGES.filter((b) => completedCount < b.minCompleted);
-
-  const rareUnlocked = unlockedBadges.filter(
-    (b) => b.tier === 'rare' || b.tier === 'legendary'
-  ).length;
-
-  const badgesToGo = lockedBadges.length;
-
-  const showcaseBadges = [...unlockedBadges]
-    .sort((a, b) => a.minCompleted - b.minCompleted)
-    .slice(-7)
-    .reverse();
-
-  return {
-    totalChallenges,
-    completedCount,
-    completionPct,
-    unlockedBadges,
-    lockedBadges,
-    rareUnlocked,
-    badgesToGo,
-    showcaseBadges,
-  };
-}
-
-// Component:
 
 function Badges() {
   const [landmarks, setLandmarks] = useState([]);
   const [trivia, setTrivia] = useState([]);
-  const [completedTriviaIds, setCompletedTriviaIds] = useState(getCompletedTriviaIds);
+  const [completedTriviaIds, setCompletedTriviaIds] = useState(() =>
+    getCompletedTriviaIds(),
+  );
 
   // Fetch landmarks and trivia from API on mount
   // fetch docs: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
@@ -147,11 +30,15 @@ function Badges() {
       .catch(() => {});
   }, []);
 
-  // Re-read completed trivia when storage changes (e.g. user answers on Map page)
+  // Re-read completed trivia when auth storage changes (Map page, other tabs, same-tab event)
   useEffect(() => {
     const refresh = () => setCompletedTriviaIds(getCompletedTriviaIds());
     window.addEventListener('storage', refresh);
-    return () => window.removeEventListener('storage', refresh);
+    window.addEventListener('openworld-auth-user', refresh);
+    return () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('openworld-auth-user', refresh);
+    };
   }, []);
 
   // Evaluate progress for every challenge
@@ -280,7 +167,6 @@ function Badges() {
             </div>
           </div>
         </section>
-
       </div>
     </div>
   );

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { PLANNED_CHALLENGE_COUNT } from '../data/badges';
+import { CHALLENGES } from '../data/challenges';
 import { apiUrl } from '../apiBase';
+import {
+  countFullyCompleted,
+  evaluateChallenges,
+  getCompletedTriviaIds,
+  getRecentUnlockedBadges,
+} from '../lib/badgeProgress';
 import { getProfileDisplayName } from '../lib/userDisplayName';
 import 'leaflet/dist/leaflet.css';
 import './Profile.css';
@@ -9,13 +17,7 @@ const UF_CENTER = [29.6436, -82.3549];
 const MAP_ZOOM = 14;
 
 const FOG_STORAGE_KEY = 'openworld_fog_pct';
-
-const PLACEHOLDER_BADGES = [
-  { id: 'p1', abbr: '—', label: 'Locked slot' },
-  { id: 'p2', abbr: '—', label: 'Locked slot' },
-  { id: 'p3', abbr: '—', label: 'Locked slot' },
-  { id: 'p4', abbr: '—', label: 'Locked slot' },
-];
+const PROFILE_BADGE_SLOTS = 4;
 
 function readFogPercent() {
   try {
@@ -77,9 +79,13 @@ function ProfileMiniMap({ landmarks }) {
 
 function Profile() {
   const [landmarks, setLandmarks] = useState([]);
+  const [trivia, setTrivia] = useState([]);
   const [loadState, setLoadState] = useState('loading');
   const [fogPct, setFogPct] = useState(() => readFogPercent());
   const [authUser, setAuthUser] = useState(() => readAuthUser());
+  const [completedTriviaIds, setCompletedTriviaIds] = useState(() =>
+    getCompletedTriviaIds(),
+  );
 
   useEffect(() => {
     const onStorage = () => setFogPct(readFogPercent());
@@ -99,13 +105,29 @@ function Profile() {
   }, []);
 
   useEffect(() => {
+    const syncTrivia = () => setCompletedTriviaIds(getCompletedTriviaIds());
+    syncTrivia();
+    window.addEventListener('storage', syncTrivia);
+    window.addEventListener('openworld-auth-user', syncTrivia);
+    return () => {
+      window.removeEventListener('storage', syncTrivia);
+      window.removeEventListener('openworld-auth-user', syncTrivia);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(apiUrl('/api/landmarks'));
-        const data = await res.json();
+        const [lmRes, trRes] = await Promise.all([
+          fetch(apiUrl('/api/landmarks')),
+          fetch(apiUrl('/api/trivia')),
+        ]);
+        const lmData = await lmRes.json();
+        const trData = await trRes.json();
         if (!cancelled) {
-          setLandmarks(Array.isArray(data) ? data : []);
+          setLandmarks(Array.isArray(lmData) ? lmData : []);
+          setTrivia(Array.isArray(trData) ? trData : []);
           setLoadState('ok');
         }
       } catch {
@@ -119,9 +141,28 @@ function Profile() {
 
   const recent = useMemo(() => sortLandmarksRecent(landmarks).slice(0, 5), [landmarks]);
 
+  const progressMap = useMemo(
+    () => evaluateChallenges(CHALLENGES, landmarks, trivia, completedTriviaIds),
+    [landmarks, trivia, completedTriviaIds],
+  );
+
+  const fullyCompleted = useMemo(
+    () => countFullyCompleted(progressMap),
+    [progressMap],
+  );
+
+  const profileBadgeSlots = useMemo(() => {
+    const earned = getRecentUnlockedBadges(fullyCompleted, PROFILE_BADGE_SLOTS);
+    const slots = earned.map((b) => ({ key: b.id, earned: true, badge: b }));
+    while (slots.length < PROFILE_BADGE_SLOTS) {
+      slots.push({ key: `empty-${slots.length}`, earned: false });
+    }
+    return slots;
+  }, [fullyCompleted]);
+
   const displayName = useMemo(
     () => getProfileDisplayName(authUser),
-    [authUser]
+    [authUser],
   );
   const usernameHandle = String(authUser?.username ?? '').trim().replace(/^@+/, '');
 
@@ -166,14 +207,31 @@ function Profile() {
 
         <aside className="profile-badges-column" aria-label="Most recent badges">
           <h2 className="profile-badges-heading">Most recent badges</h2>
-          <p className="profile-badges-hint">Placeholder — hook to Badges progress later.</p>
+          <p className="profile-badges-hint">
+            {fullyCompleted}/{PLANNED_CHALLENGE_COUNT} challenges complete (same as Badges).
+          </p>
           <div className="profile-badge-grid">
-            {PLACEHOLDER_BADGES.map((b) => (
-              <div key={b.id} className="profile-badge-slot profile-badge-slot--placeholder" title={b.label}>
-                <span className="profile-badge-slot__abbr">{b.abbr}</span>
-                <span className="profile-badge-slot__cap">{b.label}</span>
-              </div>
-            ))}
+            {profileBadgeSlots.map((slot) =>
+              slot.earned ? (
+                <div
+                  key={slot.badge.id}
+                  className="profile-badge-slot profile-badge-slot--has-badge"
+                  title={slot.badge.blurb}
+                >
+                  <span className="profile-badge-slot__abbr">{slot.badge.abbr}</span>
+                  <span className="profile-badge-slot__cap">{slot.badge.name}</span>
+                </div>
+              ) : (
+                <div
+                  key={slot.key}
+                  className="profile-badge-slot profile-badge-slot--placeholder"
+                  title="Earn badges by completing map trivia challenges"
+                >
+                  <span className="profile-badge-slot__abbr">—</span>
+                  <span className="profile-badge-slot__cap">Locked</span>
+                </div>
+              ),
+            )}
           </div>
         </aside>
 

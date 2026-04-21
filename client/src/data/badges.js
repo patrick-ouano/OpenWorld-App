@@ -8,5 +8,12 @@ export const BADGES = [
   { id: 'half-dozen', name: 'Half Dozen Hero', abbr: '6', minCompleted: 6, tier: 'common', blurb: 'Six challenges complete.' },
   { id: 'swamp-scholar', name: 'Swamp Scholar', abbr: 'SS', minCompleted: 8, tier: 'rare', blurb: 'Deep campus & tradition knowledge.' },
   { id: 'orange-core', name: 'Orange & Blue Core', abbr: 'OB', minCompleted: 10, tier: 'rare', blurb: 'Almost the full set.' },
-  { id: 'gator-legend', name: 'Gator Legend', abbr: '★', minCompleted: 12, tier: 'legendary', blurb: 'Every challenge conquered.' },
+  {
+    id: 'gator-legend',
+    name: 'Gator Legend',
+    abbr: '★',
+    minCompleted: PLANNED_CHALLENGE_COUNT,
+    tier: 'legendary',
+    blurb: 'Every challenge conquered.',
+  },
 ];

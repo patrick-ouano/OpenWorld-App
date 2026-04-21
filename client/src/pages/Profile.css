@@ -237,6 +237,16 @@
   opacity: 0.65;
 }
 
+.profile-badge-slot--has-badge {
+  background: rgba(30, 64, 175, 0.3);
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+.profile-badge-slot--has-badge .profile-badge-slot__abbr,
+.profile-badge-slot--has-badge .profile-badge-slot__cap {
+  color: #e2e8f0;
+}
+
 .profile-badge-slot__abbr {
   font-size: 1.28rem;
   font-weight: 800;
