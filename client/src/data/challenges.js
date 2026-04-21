@@ -1,4 +1,4 @@
-// Challenge definitions for the Badges page.
+// Challenge definitions for the Badges page (count drives PLANNED_CHALLENGE_COUNT in badges.js).
 // Each challenge tracks trivia completion at specific landmarks.
 //
 // There are 3 types of challenges:
