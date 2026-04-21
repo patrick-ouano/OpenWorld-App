@@ -102,14 +102,14 @@
   gap: 0.45rem;
 }
 
-/* display name was getting lost next to the map; bumped the clamp + added the 900px step — if real usernames wrap badly, nudge the max down a bit */
+/* modest size for handles / display names on profile */
 .profile-display-name {
   margin: 0;
   width: 100%;
-  font-size: clamp(2rem, 5vw + 1rem, 3.6rem);
+  font-size: clamp(1.45rem, 2.8vw + 0.85rem, 2.35rem);
   font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: 0.06em;
+  line-height: 1.08;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #fff;
   text-align: left;
@@ -118,9 +118,19 @@
 
 @media (min-width: 900px) {
   .profile-display-name {
-    font-size: clamp(2.6rem, 2.5vw + 2.2rem, 4.75rem);
-    letter-spacing: 0.08em;
+    font-size: clamp(1.65rem, 1.6vw + 1.15rem, 2.85rem);
+    letter-spacing: 0.05em;
   }
+}
+
+.profile-username-meta {
+  margin: -0.15rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+  text-transform: none;
+  word-wrap: break-word;
 }
 
 .profile-fog-inline {

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+<<<<<<< features/profile
+=======
 
+>>>>>>> main
 import { BADGES, PLANNED_CHALLENGE_COUNT } from '../data/badges';
 import { getCompletedChallengeIds } from '../lib/challengeProgress';
 import './Badges.css';
@@ -201,7 +204,10 @@ function Badges() {
             </div>
           </div>
         </section>
+<<<<<<< features/profile
+=======
 
+>>>>>>> main
       </div>
     </div>
   );
