@@ -7,12 +7,11 @@ import markerIconUrl from 'leaflet/dist/images/marker-icon.png';
 import { apiUrl } from '../apiBase';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
-import FogOfWar from './FogOfWar';
+import FogOfWar, { REVEAL_RADIUS } from './FogOfWar';
 
 const UF_CENTER = [29.6436, -82.3549];
-const PROXIMITY_METERS = 100;
 
-// pin colors: blue (default), red (in proximity, unanswered), orange (answered)
+// pin colors: blue (in fog / not revealed), red (revealed circle, unanswered), orange (answered)
 // Leaflet divIcon https://leafletjs.com/reference.html#divicon
 const nearIcon = L.divIcon({
   className: 'pin-near-icon',
@@ -150,11 +149,11 @@ function LandmarkPopup({
   popupOpenSetters,
 }) {
   const map = useMap();
-  const [view, setView] = useState('info');
+  const hasTrivia = !!triviaDoc;
+  const shouldAutoOpenTrivia = !isAdmin && isNear && hasTrivia && !isCompleted;
+  const [view, setView] = useState(() => (shouldAutoOpenTrivia ? 'trivia' : 'info'));
   const [submitting, setSubmitting] = useState(false);
   const [triviaError, setTriviaError] = useState('');
-
-  const hasTrivia = !!triviaDoc;
 
   const [newQuestion, setNewQuestion] = useState('');
   const [newOptions, setNewOptions] = useState(['', '', '']);
@@ -163,14 +162,13 @@ function LandmarkPopup({
   const coordKey = `${lm.coordinates.latitude},${lm.coordinates.longitude}`;
 
   useEffect(() => {
-    const shouldAutoOpenTrivia = !isAdmin && isNear && hasTrivia && !isCompleted;
     popupOpenSetters.current.set(coordKey, () => {
       setView(shouldAutoOpenTrivia ? 'trivia' : 'info');
     });
     return () => {
       popupOpenSetters.current.delete(coordKey);
     };
-  }, [coordKey, isAdmin, isNear, hasTrivia, isCompleted, popupOpenSetters]);
+  }, [coordKey, shouldAutoOpenTrivia, popupOpenSetters]);
 
   // fetch https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
   const handleAnswer = async (idx) => {
@@ -283,8 +281,7 @@ function LandmarkPopup({
         <h3>{lm.name}</h3>
         <p className="trivia-incorrect">Incorrect, try again.</p>
         <div className="popup-buttons trivia-form-buttons">
-          <button className="save-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('trivia'); }}>Try again</button>
-          <button className="cancel-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('info'); }}>Back</button>
+          <button className="save-btn trivia-try-again-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('trivia'); }}>Try again</button>
         </div>
       </>
     );
@@ -334,7 +331,7 @@ function LandmarkPopup({
           </button>
           <button
             className="cancel-btn"
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); map.closePopup(); setView('info'); }}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setView('info'); }}
           >
             Cancel
           </button>
@@ -515,14 +512,14 @@ function MapPage() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <FogOfWar />
+        <FogOfWar revealAt={userPos} />
         <LocationMarker onPosition={setUserPos} />
-        {/* Circle draws the 100 m proximity radius in admin view
+        {/* Circle draws the fog reveal radius in admin view
             Leaflet Circle https://leafletjs.com/reference.html#circle */}
         {isAdmin && userPos && (
           <Circle
             center={[userPos.latitude, userPos.longitude]}
-            radius={PROXIMITY_METERS}
+            radius={REVEAL_RADIUS}
             pathOptions={{
               color: '#f26a21',
               weight: 2,
@@ -542,26 +539,24 @@ function MapPage() {
           const triviaDoc = findTriviaForPin(lm);
           const isCompleted = !!triviaDoc && completedTriviaIds.has(triviaDoc._id);
 
-          // skip distance math for pins the user can't interact with
-          let isNear = false;
-          if (triviaDoc && !isCompleted && userPos) {
-            // math reference https://en.wikipedia.org/wiki/Decimal_degrees
-            const dLat = Math.abs(userPos.latitude - lm.coordinates.latitude);
-            const dLng = Math.abs(userPos.longitude - lm.coordinates.longitude);
-            if (dLat < 0.0015 && dLng < 0.0015) {
-              // Leaflet distanceTo (Haversine) https://leafletjs.com/reference.html#latlng-distanceto
-              const distance = L.latLng(userPos.latitude, userPos.longitude).distanceTo(
-                L.latLng(lm.coordinates.latitude, lm.coordinates.longitude)
-              );
-              isNear = distance <= PROXIMITY_METERS;
-            }
-          }
+          // "near" = inside fog reveal circle (same radius as FogOfWar REVEAL_RADIUS)
+          const isNear =
+            !!triviaDoc &&
+            !isCompleted &&
+            !!userPos &&
+            L.latLng(userPos.latitude, userPos.longitude).distanceTo(
+              L.latLng(lm.coordinates.latitude, lm.coordinates.longitude)
+            ) <= REVEAL_RADIUS;
+
+          const icon = isAdmin
+            ? (triviaDoc ? completedIcon : defaultIcon)
+            : (isCompleted ? completedIcon : isNear ? nearIcon : defaultIcon);
 
           return (
             <Marker
               key={lm._id}
               position={[lm.coordinates.latitude, lm.coordinates.longitude]}
-              icon={isCompleted ? completedIcon : isNear ? nearIcon : defaultIcon}
+              icon={icon}
             >
               <Popup>
                 <LandmarkPopup

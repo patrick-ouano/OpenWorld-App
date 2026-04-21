@@ -1,10 +1,12 @@
 .map-page {
   position: absolute;
-  top: 0;
+  /* Inset below fixed .top-nav; padding on .page-content does not affect abs children */
+  top: var(--top-nav-height);
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 1;
+  isolation: isolate;
 }
 
 .map-page .leaflet-container {
@@ -281,6 +283,11 @@
 
 .trivia-form-buttons {
   margin-top: 10px;
+}
+
+.trivia-try-again-btn {
+  flex: 1;
+  width: 100%;
 }
 
 .fog-gray {

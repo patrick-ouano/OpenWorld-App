@@ -1,4 +1,12 @@
 .app-layout {
+  /*
+   * Matches rendered .top-nav height (title row + divider + tab row).
+   * A value larger than the real nav leaves a #fafafa strip above the map; 138px was too tall.
+   */
+  --top-nav-height: calc(
+    (0.75rem * 2) + (1.25rem * 1.2) + 1px + (0.45rem + 0.55rem) + 3px + 26px + 0.2rem +
+      (0.68rem * 1.15)
+  );
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -82,7 +90,7 @@
 }
 
 .page-content {
-  padding-top: 138px;
+  padding-top: var(--top-nav-height);
   flex: 1;
   min-height: 0;
   position: relative;
