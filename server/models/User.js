@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'Explorer',
   },
+  completedTrivia: {
+    type: [String],
+    default: [],
+  },
 });
 
 const User = mongoose.model('User', userSchema);

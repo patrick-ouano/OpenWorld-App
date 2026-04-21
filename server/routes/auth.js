@@ -79,6 +79,7 @@ router.post('/login', async (req, res) => {
         fullName: user.fullName || '',
         email: user.email,
         role: user.role,
+        completedTrivia: user.completedTrivia || [],
       },
     });
   } catch (err) {

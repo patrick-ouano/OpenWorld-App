@@ -107,3 +107,33 @@
   font-weight: 700;
   color: var(--gw-muted);
 }
+
+.challenges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.challenge-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.85rem;
+}
+
+.challenge-item__name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.challenge-item__desc {
+  font-size: 0.85rem;
+  color: var(--gw-muted);
+  line-height: 1.4;
+}

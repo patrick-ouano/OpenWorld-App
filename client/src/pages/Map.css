@@ -1,10 +1,12 @@
 .map-page {
   position: absolute;
-  top: 0;
+  /* Inset below fixed .top-nav; padding on .page-content does not affect abs children */
+  top: var(--top-nav-height);
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 1;
+  isolation: isolate;
 }
 
 .map-page .leaflet-container {
@@ -70,6 +72,13 @@
   background: #d95a18;
 }
 
+.save-btn:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .cancel-btn {
   flex: 1;
   padding: 4px 0;
@@ -104,15 +113,183 @@
 }
 
 .delete-pin-btn {
-  background: none;
+  flex: 1;
+  padding: 6px 10px;
+  background: #d32f2f;
+  color: #fff;
   border: none;
-  color: #d32f2f;
+  border-radius: 4px;
   font-size: 11px;
+  font-weight: bold;
   cursor: pointer;
-  padding: 2px 0;
-  margin-top: 4px;
 }
 
 .delete-pin-btn:hover {
-  text-decoration: underline;
+  background: #b71c1c;
+  text-decoration: none;
+}
+
+/* proximity pin (unanswered) - shifts the default blue marker to red */
+.pin-near-icon,
+.pin-completed-icon {
+  background: transparent;
+  border: none;
+}
+
+.pin-near-img {
+  width: 25px;
+  height: 41px;
+  filter: hue-rotate(140deg) saturate(4) brightness(1);
+}
+
+/* completed pin - shifts the default blue marker to orange */
+.pin-completed-img {
+  width: 25px;
+  height: 41px;
+  filter: hue-rotate(173deg) saturate(2) brightness(1.1);
+}
+
+/* trivia button on info view */
+.trivia-btn {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #f26a21;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+}
+
+.trivia-btn:hover {
+  background: #d95a18;
+}
+
+/* admin-only 'add trivia' button in the info view */
+.add-trivia-btn {
+  flex: 1;
+  padding: 6px 10px;
+  background: #f26a21;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.add-trivia-btn:hover {
+  background: #d95a18;
+}
+
+/* trivia view styles */
+.trivia-question {
+  font-size: 12px;
+  color: #222;
+  margin: 6px 0;
+  line-height: 1.35;
+}
+
+.trivia-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.trivia-option-btn {
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  color: #222;
+}
+
+.trivia-option-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #f26a21;
+}
+
+.trivia-option-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.trivia-incorrect {
+  color: #c00505;
+  font-size: 12px;
+  font-weight: bold;
+  margin: 6px 0;
+}
+
+/* admin create-pin trivia section */
+.trivia-admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #eee;
+}
+
+.trivia-admin-section textarea {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 11px;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 36px;
+  font-family: inherit;
+}
+
+.trivia-admin-section textarea:focus {
+  outline: none;
+  border-color: #00529b;
+}
+
+.trivia-save-error {
+  color: #d32f2f;
+  font-size: 11px;
+  margin: 4px 0 0;
+}
+
+.trivia-admin-label {
+  color: #666;
+  font-weight: bold;
+}
+
+.trivia-admin-option-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trivia-admin-option-row input[type="radio"] {
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.trivia-admin-option-row input[type="text"] {
+  flex: 1;
+}
+
+.trivia-form-buttons {
+  margin-top: 10px;
+}
+
+.trivia-try-again-btn {
+  flex: 1;
+  width: 100%;
+}
+
+.fog-gray {
+  filter: brightness(0.1);
 }
