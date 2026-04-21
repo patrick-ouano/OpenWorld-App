@@ -1,4 +1,4 @@
-/** Placeholder total for completion % until the Challenges feature exists. */
+/** Total number of challenges — must match CHALLENGES.length in challenges.js. */
 export const PLANNED_CHALLENGE_COUNT = 12;
 
 // Unlock when the user has completed at least `minCompleted` challenges (any order).

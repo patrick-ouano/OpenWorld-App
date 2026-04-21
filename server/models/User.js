@@ -5,6 +5,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  fullName: {
+    type: String,
+    default: '',
+  },
   email: {
     type: String,
     required: true,
@@ -20,6 +24,10 @@ const userSchema = new mongoose.Schema({
   },
   // stores explored map cells per user
   exploredCells: {
+    type: [String],
+    default: [],
+  },
+  completedTrivia: {
     type: [String],
     default: [],
   },

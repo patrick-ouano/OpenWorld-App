@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import landmarkRoutes from './routes/landmarks.js';
 import authRoutes from './routes/auth.js';
+import triviaRoutes from './routes/trivia.js';
 import explorationRoutes from './routes/exploration.js';
 
 dns.setServers(['8.8.8.8', '8.8.4.4']); // fixes dns issues with mongodb connection 
@@ -25,6 +26,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/landmarks', landmarkRoutes);
+app.use('/api/trivia', triviaRoutes);
 app.use('/api/exploration', explorationRoutes);
 
 const port = Number(process.env.PORT) || 5000;

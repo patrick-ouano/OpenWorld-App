@@ -95,19 +95,6 @@
   color: var(--gw-accent);
 }
 
-.badges-page .link-challenges {
-  display: inline-block;
-  margin-top: 0.75rem;
-  font-size: 0.85rem;
-  color: var(--gw-accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.badges-page .link-challenges:hover {
-  text-decoration: underline;
-}
-
 .badges-overflow {
   display: flex;
   align-items: center;
@@ -119,4 +106,61 @@
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--gw-muted);
+}
+
+.challenges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.challenge-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.85rem;
+  transition: border-color 0.2s;
+}
+
+/* completed challenge highlight */
+.challenge-item--done {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.06);
+}
+
+/* name + progress sit side-by-side */
+.challenge-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+}
+
+.challenge-item__name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+/* "2/5" progress label */
+.challenge-item__progress {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gw-muted);
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.challenge-item--done .challenge-item__progress {
+  color: #4ade80;
+}
+
+.challenge-item__desc {
+  font-size: 0.85rem;
+  color: var(--gw-muted);
+  line-height: 1.4;
 }
