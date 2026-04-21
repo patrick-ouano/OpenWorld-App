@@ -1,3 +1,6 @@
+/* Shared badge + challenge math for Badges.jsx and Profile.jsx (avoid copy-paste drift).
+   Map/ auth persist completed trivia IDs under localStorage key `authUser` (see Map.jsx handleCorrectAnswer).
+   Set / Map lookups: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set */
 import { BADGES, PLANNED_CHALLENGE_COUNT } from '../data/badges';
 
 /** Same storage key as Login / Map (`authUser`). */
@@ -13,7 +16,8 @@ export function getCompletedTriviaIds() {
   }
 }
 
-/* copilot helped fix this function, i dont understand the code and was stuck for a while */
+/* Progress per challenge — driven by data shape in client/src/data/challenges.js (threshold / all / specific).
+   Links trivia to landmarks by matching coordinates (same idea as Badges.jsx before extract). */
 export function evaluateChallenges(challenges, landmarks, trivia, completedTriviaIds) {
   const completedSet = new Set(
     (completedTriviaIds || []).map((id) => String(id)),

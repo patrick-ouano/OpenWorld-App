@@ -1,3 +1,5 @@
+// Challenge list + badge grid; progress helpers live in ../lib/badgeProgress.js (Profile imports the same module).
+// fetch(): https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 import { useEffect, useMemo, useState } from 'react';
 import { CHALLENGES } from '../data/challenges';
 import {

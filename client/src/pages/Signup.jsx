@@ -1,4 +1,10 @@
-// same auth pattern as Login.jsx
+// Signup flow mirrors Login.jsx (controlled inputs + fetch + navigate).
+// React forms / state: https://react.dev/learn/reacting-to-input-with-state
+// useNavigate after success: https://reactrouter.com/en/main/hooks/use-navigate
+// fetch() POST JSON: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+// form noValidate — skip browser’s built-in validation so we can show our username hint + errors first:
+//   https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/form#novalidate
+// Username pattern matches server USERNAME_RE in server/routes/auth.js (keep them in sync if you change one)
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiUrl } from '../apiBase';

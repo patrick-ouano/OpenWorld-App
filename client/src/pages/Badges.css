@@ -1,5 +1,7 @@
+/* Pulls shared “gw-*” vars + .gw-page chrome from gamificationTheme.css (palette started from Tailwind-style hex picks + ChatGPT pass — see comment in that file). */
 @import '../styles/gamificationTheme.css';
 
+/* Icon grid — CSS Grid repeat(): https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns */
 .badges-page .badge-icon-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -12,6 +14,7 @@
   }
 }
 
+/* Square tiles — aspect-ratio: https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio */
 .badge-slot {
   aspect-ratio: 1;
   border-radius: 6px;
@@ -51,6 +54,7 @@
   filter: grayscale(0.85);
 }
 
+/* Diagonal hatch on locked slots — repeating-linear-gradient: https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/repeating-linear-gradient */
 .badge-slot--locked::after {
   content: '';
   position: absolute;
@@ -108,6 +112,7 @@
   color: var(--gw-muted);
 }
 
+/* Scrollable challenge list — overflow-y: https://developer.mozilla.org/en-US/docs/Web/CSS/overflow */
 .challenges-list {
   display: flex;
   flex-direction: column;

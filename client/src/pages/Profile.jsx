@@ -1,3 +1,6 @@
+// Profile map + discoveries use react-leaflet: https://react-leaflet.js.org/docs/start-introduction/
+// Badge strip reuses ../lib/badgeProgress.js (same logic as Badges.jsx).
+// useMemo: https://react.dev/reference/react/useMemo
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { PLANNED_CHALLENGE_COUNT } from '../data/badges';
